@@ -2,6 +2,7 @@ from socialjax.environments import (
     # Social dilemma environments
     Territory_open,
     Harvest_open,
+    Harvest_timeout,
     Clean_up,
     CoopMining,
     CoinGame,
@@ -15,6 +16,7 @@ REGISTERED_ENVS = [
     # Social dilemma environments
     "coin_game",
     "harvest_common_open",
+    "harvest_timeout",
     # "harvest_common_closed",
     "clean_up",
     "coop_mining",
@@ -32,6 +34,8 @@ def make(env_id: str, **env_kwargs):
 
     elif env_id == "harvest_common_open":
         env = Harvest_open(**env_kwargs)
+    elif env_id == "harvest_timeout":
+        env = Harvest_timeout(**env_kwargs)    
     # elif env_id == "harvest_common_closed":
     #     env = Harvest_closed(**env_kwargs)
     elif env_id == "clean_up":

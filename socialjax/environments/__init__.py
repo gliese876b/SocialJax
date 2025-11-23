@@ -1,6 +1,6 @@
 from .multi_agent_env import MultiAgentEnv, State
 
-from .common_harvest import Harvest_open
+from .common_harvest import Harvest_open, Harvest_timeout
 from .cleanup import Clean_up
 from .territory import Territory_open
 from .pd_arena import PD_Arena
