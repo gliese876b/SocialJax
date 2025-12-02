@@ -14,6 +14,153 @@ import imageio
 import time
 from datetime import datetime 
 
+RENDER = True
+
+def visualize_grid_terminal(state, env):
+    """
+    Visualizes the grid in the terminal with agents and their directions.
+    
+    Legend:
+    - Wall: ██
+    - Empty: ..
+    - Apple: 🍎
+    - Agent: A0-A9 with direction arrow (↑↓←→)
+    - Frozen Agent: (A0)-(A9) with direction arrow
+    """
+    grid = state.grid
+    height, width = grid.shape
+    
+    # Direction symbols (adjusted for top-left origin grid)
+    # In this coordinate system: increasing row = moving down, increasing col = moving right
+    DIR_SYMBOLS = {
+        0: 'v',  # North in code = Down visually (increasing row)
+        1: '>',  # East (increasing col) 
+        2: '^',  # South in code = Up visually (decreasing row)
+        3: '<'   # West (decreasing col)
+    }
+    
+    # Object type symbols (socialjax convention: 0-4 for static items, 5+ for agents)
+    # Based on Items enum: empty=0, wall=1, interact=2, apple=3, spawn_point=4
+    SYMBOLS = {
+        0: ' _ ',  # Empty
+        1: '███',  # Wall
+        2: ' ⚡',  # Interact (zap beam)
+        3: ' A ',  # Apple
+        4: ' S '   # Spawn point
+    }
+    
+    print("\n" + "="*60)
+    print("Grid Visualization")
+    print("="*60)
+    
+    # Print column numbers
+    print("    ", end="")
+    for c in range(width):
+        print(f" {c:2d} ", end="")
+    print()
+    print("    " + "----" * width)
+    
+    # Print each row
+    for r in range(height):
+        print(f"{r:2d} |", end=" ")
+        for c in range(width):
+            cell_id = int(grid[r, c])  # Convert JAX array to Python int
+            
+            # Check if it's an agent (ID >= 5)
+            if cell_id >= 5:
+                agent_idx = cell_id - 5
+                direction = int(state.agent_locs[agent_idx, 2])  # Convert to int
+                dir_symbol = DIR_SYMBOLS[direction]
+                
+                # Check if agent is frozen
+                if int(state.freeze[agent_idx]) > 0:
+                    # Frozen agent (shouldn't normally be on grid, but show if present)
+                    print(f"({agent_idx}{dir_symbol})", end="")
+                else:
+                    # Active agent
+                    if agent_idx < 10:
+                        print(f" {agent_idx}{dir_symbol}", end=" ")
+                    else:
+                        print(f"{agent_idx}{dir_symbol}", end=" ")
+            else:
+                # Static object
+                symbol = SYMBOLS.get(cell_id, '??')
+                print(f"{symbol}", end=" ")
+        print()
+    
+    print()
+    
+    # Print agent info
+    print("Agent Information:")
+    print("-" * 60)
+    for i in range(env.num_agents):
+        r, c, d = state.agent_locs[i]
+        dir_symbol = DIR_SYMBOLS[int(d)]
+        frozen_status = f" [FROZEN: {state.freeze[i]} steps]" if state.freeze[i] > 0 else ""
+        print(f"Agent {i}: Position=({r}, {c}), Direction={dir_symbol}{frozen_status}")
+    
+    print("="*60 + "\n")
+
+def perform_consistency_checks(step, state, env):
+    """
+    Performs checks on the environment state for internal consistency.
+    
+    Checks:
+    1. Collision: If more than one agent occupies the same (r, c) location.
+    2. Grid Representation: If the grid contains the correct agent IDs at the
+       locations specified in state.agent_locs.
+    """
+    print(f"\n--- Consistency Checks (Step {step}) ---")
+    
+    # Extract only the (r, c) coordinates (first two columns)
+    # The agent_locs structure is assumed to be (r, c, d)
+    agent_positions = state.agent_locs[:, :2]
+    
+    # 1. Check for Collisions (More than one agent at the same (r, c))
+    # We use np.unique with return_counts to find duplicated (r, c) pairs.
+    unique_positions, counts = np.unique(agent_positions, axis=0, return_counts=True)
+    
+    # Find positions where count > 1 (i.e., collisions)
+    collision_indices = np.where(counts > 1)[0]
+    
+    if collision_indices.size > 0:
+        collision_locs = unique_positions[collision_indices]
+        print(f"\t\t!!! COLLISION ERROR: Multiple agents occupy the following locations:")
+        for loc in collision_locs:
+            # Find the indices of agents at this location for better debugging
+            agent_indices = np.where(np.all(agent_positions == loc, axis=1))[0]
+            print(f"   Location ({loc[0]}, {loc[1]}) occupied by agents: {list(agent_indices)}")
+    else:
+        print("OK: Collision Check passed. No two agents occupy the same (r, c) location.")
+
+    # 2. Check Grid Representation
+    # Agent IDs start from 5 (socialjax convention: 0-4 for static items)
+    AGENT_ID_START = 5
+    grid_ok = True
+    
+    for i in range(env.num_agents):
+        r, c, d = state.agent_locs[i]
+        
+        # Check if agent is frozen. Frozen agents should NOT be on the grid.
+        if state.freeze[i] > 0:
+            if state.grid[r, c] == AGENT_ID_START + i:
+                print(f"\t\tWARNING: Agent {i} is frozen but is still present on the grid at ({r}, {c})")
+            continue
+        
+        # Check if the grid cell at (r, c) contains the correct agent ID (5 + index)
+        expected_id = AGENT_ID_START + i
+        actual_id = state.grid[r, c]
+        
+        if actual_id != expected_id:
+            grid_ok = False
+            print(f"\t\t!!! GRID ERROR: Agent {i} is at ({r}, {c}) but grid cell contains {actual_id} (Expected: {expected_id})")
+
+    if grid_ok:
+        print("OK: Grid Check passed. All active agents are correctly placed on the grid.")
+    print("-" * 40)
+    
+    return grid_ok
+
 def render_agent_view(env, state, agent_idx):
     """
     Renders the egocentric view of a specific agent using the environment's assets.
@@ -138,11 +285,16 @@ def run_episode(
     print(state.agent_locs)
     print("Observation shape:", obs.shape)
     
+    visualize_grid_terminal(state, env)
+    
+    perform_consistency_checks(0, state, env)
+    
     # Storage for rendering
-    frames = []
-    agent_frames = [[] for _ in range(env.num_agents)]
+    if RENDER:
+        frames = []
+        agent_frames = [[] for _ in range(env.num_agents)]
 
-    frames.append(env.render(state))
+        frames.append(env.render(state))
 
     for i in range(env.num_agents):
         agent_key = env.agents[i]
@@ -153,11 +305,13 @@ def run_episode(
                 print(f"❌ ERROR: Agent {i} is frozen but received non-zero observation!")
             # Append black frame or last frame, or just skip. 
             # Here we append a black frame to keep video sync.
-            black_frame = np.zeros((env.OBS_SIZE*32, env.OBS_SIZE*32, 3), dtype=np.uint8)
-            agent_frames[i].append(black_frame)
+            if RENDER:
+                black_frame = np.zeros((env.OBS_SIZE*32, env.OBS_SIZE*32, 3), dtype=np.uint8)
+                agent_frames[i].append(black_frame)
         else:
-            a_frame = render_agent_view(env, state, i)
-            agent_frames[i].append(a_frame)
+            if RENDER:
+                a_frame = render_agent_view(env, state, i)
+                agent_frames[i].append(a_frame)
     
     # Episode info
     episode_rewards = np.zeros(env.num_agents)
@@ -182,8 +336,9 @@ def run_episode(
             else:
                 # Random actions
                 rng, *action_rngs = jax.random.split(rng, env.num_agents + 1)
+                probs = jnp.array([0.2, 0.2, 0.5, 0, 0.1])
                 actions = [
-                    jax.random.randint(action_rngs[i], (), 0, env.num_actions).item()
+                    jax.random.choice(action_rngs[i], a=env.num_actions, p=probs).item()
                     for i in range(env.num_agents)
                 ]
                 print(f"Actions: {actions}")
@@ -191,6 +346,8 @@ def run_episode(
             # Step environment
             rng, step_rng = jax.random.split(rng)
             obs, state, rewards, done_dict, info = env.step(step_rng, state, actions)
+            
+            visualize_grid_terminal(state, env)
             
             # Update episode info
             episode_rewards += np.array(rewards)
@@ -201,9 +358,13 @@ def run_episode(
             if info:
                 print(f"Info: {info}")
             
+            if not perform_consistency_checks(step + 1, state, env):
+                break
+            
             # Render
-            frame = env.render(state)
-            frames.append(frame)
+            if RENDER:
+                frame = env.render(state)
+                frames.append(frame)
 
             for i in range(env.num_agents):
                 agent_key = env.agents[i]
@@ -214,11 +375,13 @@ def run_episode(
                         print(f"❌ ERROR: Agent {i} is frozen but received non-zero observation!")
                     # Append black frame or last frame, or just skip. 
                     # Here we append a black frame to keep video sync.
-                    black_frame = np.zeros((env.OBS_SIZE*32, env.OBS_SIZE*32, 3), dtype=np.uint8)
-                    agent_frames[i].append(black_frame)
+                    if RENDER:
+                        black_frame = np.zeros((env.OBS_SIZE*32, env.OBS_SIZE*32, 3), dtype=np.uint8)
+                        agent_frames[i].append(black_frame)
                 else:
-                    a_frame = render_agent_view(env, state, i)
-                    agent_frames[i].append(a_frame)
+                    if RENDER:
+                        a_frame = render_agent_view(env, state, i)
+                        agent_frames[i].append(a_frame)
             
             step += 1
             
@@ -236,44 +399,45 @@ def run_episode(
     print(f"Mean reward: {np.mean(episode_rewards):.2f}")
     print(f"{'='*60}\n")
     
-    # Save video
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")  
-    save_path = f"test_{timestamp}/test_{env_name}.mp4"
-    print(f"Saving episode to {save_path}...")
-    save_path = Path(save_path)
-    save_path.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Convert frames to numpy arrays
-    frames_np = [np.array(frame) for frame in frames]
-    
-    # Determine format from extension
-    extension = save_path.suffix.lower()
-    
-    # Save as video (MP4, AVI, etc.) using imageio
-    # For MP4, use ffmpeg codec
-    if extension == '.mp4':
-        imageio.mimsave(
-            save_path,
-            frames_np,
-            fps=fps,
-            codec='libx264',
-            quality=8,
-            pixelformat='yuv420p'
-        )
-    else:
-        # For other formats, let imageio choose codec
-        imageio.mimsave(save_path, frames_np, fps=fps)
-    
-    agent_dir = save_path.parent / f"{save_path.stem}_agent_views"
-    agent_dir.mkdir(exist_ok=True)
+    if RENDER:
+        # Save video
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")  
+        save_path = f"test_{timestamp}/test_{env_name}.mp4"
+        print(f"Saving episode to {save_path}...")
+        save_path = Path(save_path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Convert frames to numpy arrays
+        frames_np = [np.array(frame) for frame in frames]
+        
+        # Determine format from extension
+        extension = save_path.suffix.lower()
+        
+        # Save as video (MP4, AVI, etc.) using imageio
+        # For MP4, use ffmpeg codec
+        if extension == '.mp4':
+            imageio.mimsave(
+                save_path,
+                frames_np,
+                fps=fps,
+                codec='libx264',
+                quality=8,
+                pixelformat='yuv420p'
+            )
+        else:
+            # For other formats, let imageio choose codec
+            imageio.mimsave(save_path, frames_np, fps=fps)
+        
+        agent_dir = save_path.parent / f"{save_path.stem}_agent_views"
+        agent_dir.mkdir(exist_ok=True)
 
-    print(f"Saving agent observations to {agent_dir}...")
-    for i in range(env.num_agents):
-        if len(agent_frames[i]) > 0:
-            agent_vid_path = agent_dir / f"agent_{i}_obs.mp4"
-            imageio.mimsave(str(agent_vid_path), agent_frames[i], fps=fps)      
+        print(f"Saving agent observations to {agent_dir}...")
+        for i in range(env.num_agents):
+            if len(agent_frames[i]) > 0:
+                agent_vid_path = agent_dir / f"agent_{i}_obs.mp4"
+                imageio.mimsave(str(agent_vid_path), agent_frames[i], fps=fps)      
 
-    print(f"✓ Saved episode video with {len(frames)} frames at {fps} FPS")
+        print(f"✓ Saved episode video with {len(frames)} frames at {fps} FPS")
 
 
 def main():

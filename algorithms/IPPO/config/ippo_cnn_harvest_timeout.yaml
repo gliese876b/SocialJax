@@ -1,19 +1,17 @@
-"LR": 0.0005
+"LR": 0.00005
 "NUM_ENVS": 16
-"NUM_STEPS": 1000
-"TOTAL_TIMESTEPS": 3e8
+"NUM_STEPS": 128
+"TOTAL_TIMESTEPS": 2e8
 "UPDATE_EPOCHS": 2
-"NUM_MINIBATCHES": 500
+"NUM_MINIBATCHES": 8
 "GAMMA": 0.99
 "GAE_LAMBDA": 0.95
 "CLIP_EPS": 0.2
 "ENT_COEF": 0.01
 "VF_COEF": 0.5
-"MAX_GRAD_NORM": 0.5
+"MAX_GRAD_NORM": 5.0
 "ACTIVATION": "relu"
 "ENV_NAME": "harvest_timeout"
-"REW_SHAPING_HORIZON": 2.5e6 # for how many timesteps add a shaping reward
-"SHAPING_BEGIN": 1e6
 "ENV_KWARGS":
   "num_agents" : 10
   "num_inner_steps" : 1000
@@ -32,7 +30,7 @@
 "PARAMETER_SHARING": False
 
 # Evaluation settings
-"EVAL_INTERVAL": 16000  # Evaluate every N environment steps
+"EVAL_INTERVAL": 200    # Evaluate every N iterations
 "EVAL_EPISODES": 10     # Number of episodes per evaluation
 
 # WandB Params

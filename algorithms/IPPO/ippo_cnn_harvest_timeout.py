@@ -28,6 +28,8 @@ from pathlib import Path
 import json
 from datetime import datetime 
 
+import imageio
+
 class CNN(nn.Module):
     activation: str = "relu"
 
@@ -188,19 +190,6 @@ def make_train(config):
 
     env = LogWrapper(env, replace_info=False)
 
-    rew_shaping_anneal = optax.linear_schedule(
-        init_value=0.,
-        end_value=1.,
-        transition_steps=config["REW_SHAPING_HORIZON"],
-        transition_begin=config["SHAPING_BEGIN"]
-    )
-
-    rew_shaping_anneal_org = optax.linear_schedule(
-        init_value=1.,
-        end_value=0.,
-        transition_steps=config["REW_SHAPING_HORIZON"],
-        transition_begin=config["SHAPING_BEGIN"]
-    )
     def linear_schedule(count):
         frac = (
             1.0
@@ -279,8 +268,9 @@ def make_train(config):
                     value = []
                     for i in range(env.num_agents):
                         print("input_obs_shape", obs_batch[i].shape)
+                        rng, _rng_agent = jax.random.split(rng)
                         pi, value_i = network[i].apply(train_state[i].params, obs_batch[i])
-                        action = pi.sample(seed=_rng)
+                        action = pi.sample(seed=_rng_agent)
                         log_prob.append(pi.log_prob(action))
                         env_act[env.agents[i]] = action
                         value.append(value_i)
@@ -297,10 +287,6 @@ def make_train(config):
                 obsv, env_state, reward, done, info = jax.vmap(
                     env.step, in_axes=(0, 0, 0)
                 )(rng_step, env_state, env_act)
-
-                # current_timestep = update_step*config["NUM_STEPS"]*config["NUM_ENVS"]
-                # shaped_reward = compute_grouped_rewards(reward)
-                # reward = jax.tree_util.tree_map(lambda x,y: x*rew_shaping_anneal_org(current_timestep)+y*rew_shaping_anneal(current_timestep), reward, shaped_reward)
 
                 # Define a function to conditionally reshape based on dimensionality
                 def reshape_if_scalar(x):
@@ -526,9 +512,6 @@ def make_train(config):
                 # Use different seed for evaluation
                 eval_seed = config["SEED"] + int(step) + 999999
 
-                # Set up video directory
-                video_dir = os.path.join(config["RUN_OUTPUT_DIR"], "eval_videos")
-
                 eval_data = run_evaluation_episodes(
                     params,
                     config,
@@ -609,21 +592,20 @@ def make_train(config):
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
                 print(f"[{timestamp}] ✓ Updated {json_path} with step {step_idx} (step_count={int(step)})")
 
-
-                # gif_env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
+                video_env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
                 
-                # print("\n" + "="*60)
-                # print(f"Generating GIF for step {step}...")
-                # print("="*60)
-                # evaluate(
-                #     params,
-                #     gif_env,
-                #     output_dir,
-                #     config,
-                #     save_gif=True, 
-                #     step=step
-                # )
-                # print(f"✓ GIF generated and logged to WandB for step {step}")  
+                print("\n" + "="*60)
+                print(f"Generating video for step {step}...")
+                print("="*60)
+                evaluate(
+                    params,
+                    video_env,
+                    output_dir,
+                    config,
+                    save_video=True, 
+                    step=step
+                )
+                print(f"✓ Video generated and logged to WandB for step {step}")  
 
                 jax.clear_caches()
 
@@ -642,7 +624,7 @@ def make_train(config):
 
             current_step = update_step * config["NUM_STEPS"] * config["NUM_ENVS"]
 
-            should_eval = (current_step > 0) & (current_step % config["EVAL_INTERVAL"] == 0)
+            should_eval = (current_step > 0) & (update_step % config["EVAL_INTERVAL"] == 0)
             should_eval = jnp.asarray(should_eval)  # ensure scalar if needed
 
             def eval_branch(_):
@@ -961,13 +943,13 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
     return all_returns
 
 
-def evaluate(params, env, save_path, config, save_gif=True, step=0):
+def evaluate(params, env, save_path, config, save_video=True, step=0):
     """
     Evaluate policy and optionally save GIF.
 
     Returns:
         dict: {"player_0_return": [...], "player_1_return": [...], "return": [...]}
-              Returns empty dict if save_gif=True (called at end of training)
+              Returns empty dict if save_video=True (called at end of training)
     """
     rng = jax.random.PRNGKey(0)
 
@@ -979,7 +961,7 @@ def evaluate(params, env, save_path, config, save_gif=True, step=0):
     episode_rewards = {f"player_{i}": 0.0 for i in range(env.num_agents)}
 
     pics = []
-    if save_gif:
+    if save_video:
         img = env.render(state)
         pics.append(img)
         root_dir = save_path
@@ -1017,31 +999,33 @@ def evaluate(params, env, save_path, config, save_gif=True, step=0):
         done = done["__all__"]
 
         # Render if saving GIF
-        if save_gif:
+        if save_video:
             img = env.render(state)
             pics.append(img)
 
     # Save GIF if requested
-    if save_gif:
-        print(f"Saving Episode GIF")
-        pics = [Image.fromarray(np.array(img)) for img in pics]
+    if save_video:
+        print(f"Saving Episode MP4")
         n_agents = len(env.agents)
-        gif_path = f"{root_dir}/{n_agents}-agents_seed-{config['SEED']}_step_{step}.gif"
-        pics[0].save(
-            gif_path,
-            format="GIF",
-            save_all=True,
-            optimize=False,
-            append_images=pics[1:],
-            duration=200,
-            loop=0,
+        mp4_path = f"{root_dir}/{n_agents}-agents_seed-{config['SEED']}_step_{step}.mp4"
+        
+        # Convert to numpy arrays
+        frames = [np.array(img) for img in pics]
+        
+        # Save as MP4
+        imageio.mimsave(
+            mp4_path, 
+            frames, 
+            fps=5,  # 200ms per frame = 5 fps
+            codec='libx264',
+            quality=8,
+            pixelformat='yuv420p'
         )
-        print("Logging GIF to WandB")
-        wandb.log({"Episode GIF": wandb.Video(gif_path, caption="Evaluation Episode", format="gif")})
-
-        return {}  # Don't return data when saving GIF
+        
+        print("Logging MP4 to WandB")
+        wandb.log({"Episode Video": wandb.Video(mp4_path, caption="Evaluation Episode", format="mp4")})
+        return {}
     else:
-        # Return episode returns for MARL-eval
         return episode_rewards
 
 
