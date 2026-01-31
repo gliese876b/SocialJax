@@ -58,7 +58,7 @@ class Items(IntEnum):
     interact = 2
     apple = 3
     spawn_point = 4
-    
+
 char_to_int = {
     'W': 1,
     ' ': 0,  # 空格字符映射为 0
@@ -89,26 +89,26 @@ STEP = jnp.array(
 def ascii_map_to_matrix(map_ASCII, char_to_int):
     """
     Convert ASCII map to a JAX numpy matrix using the given character mapping.
-    
+
     Args:
     map_ASCII (list): List of strings representing the ASCII map
     char_to_int (dict): Dictionary mapping characters to integer values
-    
+
     Returns:
     jax.numpy.ndarray: 2D matrix representation of the ASCII map
     """
     # Determine matrix dimensions
     height = len(map_ASCII)
     width = max(len(row) for row in map_ASCII)
-    
+
     # Create matrix filled with zeros
     matrix = jnp.zeros((height, width), dtype=jnp.int32)
-    
+
     # Fill matrix with mapped values
     for i, row in enumerate(map_ASCII):
         for j, char in enumerate(row):
             matrix = matrix.at[i, j].set(char_to_int.get(char, 0))
-    
+
     return matrix
 
 def generate_agent_colors(num_agents):
@@ -126,8 +126,8 @@ class OptimizedRenderer:
     Add this to your Harvest_timeout class.
     Uses onp (numpy) for rendering operations since rendering is CPU-side.
     """
-    
-    def __init__(self, num_agents, player_colours, grid_size_row, grid_size_col, 
+
+    def __init__(self, num_agents, player_colours, grid_size_row, grid_size_col,
                  obs_size, padding, tile_size=16, subdivs=3):
         self.num_agents = num_agents
         self.PLAYER_COLOURS = player_colours
@@ -137,33 +137,33 @@ class OptimizedRenderer:
         self.PADDING = padding
         self.tile_size = tile_size
         self.subdivs = subdivs
-        
+
         # Cache for all pre-rendered tiles (using regular numpy)
         self.tile_cache: Dict[Tuple[Any, ...], onp.ndarray] = {}
-        
+
         # Pre-render all possible tiles at initialization
         self._prerender_all_tiles()
-    
+
     def _prerender_all_tiles(self):
         """Pre-render all possible tile combinations"""
         print("Pre-rendering tiles...")
-        
+
         # 1. Render empty/background tile
-        self._render_and_cache_tile(None, agent_dir=None, agent_hat=False, 
+        self._render_and_cache_tile(None, agent_dir=None, agent_hat=False,
                                      highlight=False)
-        self._render_and_cache_tile(None, agent_dir=None, agent_hat=False, 
+        self._render_and_cache_tile(None, agent_dir=None, agent_hat=False,
                                      highlight=True)
-        
+
         # 2. Render all item types from your Items enum
         # Items: empty=0, wall=1, interact=2, apple=3, spawn_point=4
         # Plus special types: 99, 100, 101
         item_types = [0, 1, 2, 3, 4, 99, 100, 101]
-        
+
         for item in item_types:
             for highlight in [False, True]:
-                self._render_and_cache_tile(item, agent_dir=None, 
+                self._render_and_cache_tile(item, agent_dir=None,
                                             agent_hat=False, highlight=highlight)
-        
+
         # 3. Render all agent orientations (4 directions * num_agents * hat variants)
         # Agents are offset by len(Items) = 5 in your code
         for agent_idx in range(self.num_agents):
@@ -172,29 +172,29 @@ class OptimizedRenderer:
                 for agent_hat in [False, True]:
                     for highlight in [False, True]:
                         self._render_and_cache_tile(agent_id, agent_dir=direction,
-                                                    agent_hat=agent_hat, 
+                                                    agent_hat=agent_hat,
                                                     highlight=highlight)
-        
+
         print(f"Pre-rendered {len(self.tile_cache)} tiles")
-    
-    def _render_and_cache_tile(self, obj, agent_dir=None, agent_hat=False, 
+
+    def _render_and_cache_tile(self, obj, agent_dir=None, agent_hat=False,
                                 highlight=False):
         """Render a single tile and store it in cache"""
         # Create cache key
         key = (obj, agent_dir, agent_hat, highlight, self.tile_size)
-        
+
         # Skip if already cached
         if key in self.tile_cache:
             return
-        
+
         # Create base image (using onp for CPU rendering)
         img = onp.full(
-            shape=(self.tile_size * self.subdivs, 
+            shape=(self.tile_size * self.subdivs,
                    self.tile_size * self.subdivs, 3),
             fill_value=(210, 190, 140),
             dtype=onp.uint8,
         )
-        
+
         # Render object/item based on your Items enum
         if obj is not None and obj >= 5:  # Agent
             agent_idx = obj - 5
@@ -212,7 +212,7 @@ class OptimizedRenderer:
             self._fill_rect(img, 0, 1, 0, 1, (214, 39, 40))
         elif obj == 101:
             self._fill_rect(img, 0, 1, 0, 1, (255, 255, 255))
-        
+
         # Overlay agent if needed (matches your original render_tile logic)
         if agent_dir is not None:
             if obj is not None and obj >= 5:
@@ -221,222 +221,222 @@ class OptimizedRenderer:
             else:
                 # Should not happen, but fallback
                 agent_color = (255, 255, 255)
-            
+
             if agent_hat:
-                self._draw_agent_triangle(img, agent_dir, (255, 255, 255), 
+                self._draw_agent_triangle(img, agent_dir, (255, 255, 255),
                                          border=0.3)
-            
+
             self._draw_agent_triangle(img, agent_dir, agent_color, border=0.0)
-        
+
         # Apply highlight
         if highlight:
             self._highlight_img(img)
-        
+
         # Downsample for anti-aliasing
         img = self._downsample(img, self.subdivs)
-        
+
         # Store in cache
         self.tile_cache[key] = img
-    
+
     def _fill_circle(self, img, cx, cy, r, color):
         """Optimized circle drawing using vectorized operations"""
         h, w = img.shape[:2]
-        
+
         # Create coordinate grids (using onp)
         y, x = onp.ogrid[:h, :w]
-        
+
         # Normalize coordinates
         xf = (x + 0.5) / w
         yf = (y + 0.5) / h
-        
+
         # Calculate distance from center
         mask = (xf - cx)**2 + (yf - cy)**2 <= r**2
         img[mask] = color
-    
+
     def _fill_rect(self, img, xmin, xmax, ymin, ymax, color):
         """Optimized rectangle drawing - just fill the region"""
         h, w = img.shape[:2]
-        
+
         # Convert normalized coords to pixels
         x0 = int(xmin * w)
         x1 = int(xmax * w)
         y0 = int(ymin * h)
         y1 = int(ymax * h)
-        
+
         img[y0:y1, x0:x1] = color
-    
+
     def _draw_agent_triangle(self, img, direction, color, border=0.0):
         """Draw agent triangle with rotation (matches your original logic)"""
         h, w = img.shape[:2]
-        
+
         # Define triangle points (normalized coordinates) - same as your original
         p1 = onp.array([0.12, 0.19])
         p2 = onp.array([0.87, 0.50])
         p3 = onp.array([0.12, 0.81])
-        
+
         # Rotate triangle based on direction (same as your original)
         theta = 0.5 * math.pi * (1 - direction)
         cx, cy = 0.5, 0.5
-        
+
         def rotate_point(p):
             x, y = p[0] - cx, p[1] - cy
             x_rot = cx + x * math.cos(theta) - y * math.sin(theta)
             y_rot = cy + y * math.cos(theta) + x * math.sin(theta)
             return onp.array([x_rot, y_rot])
-        
+
         p1_rot = rotate_point(p1)
         p2_rot = rotate_point(p2)
         p3_rot = rotate_point(p3)
-        
+
         # Convert to pixel coordinates
         pts = onp.array([p1_rot, p2_rot, p3_rot]) * onp.array([w, h])
-        
+
         # Fill triangle using barycentric coordinates
         self._fill_triangle(img, pts, color, border)
-    
+
     def _fill_triangle(self, img, pts, color, border=0.0):
         """Vectorized triangle filling - MUCH FASTER than pixel-by-pixel"""
         h, w = img.shape[:2]
-        
+
         # Get triangle vertices
         a = pts[0]
         b = pts[1]
         c = pts[2]
-        
+
         # Compute bounding box
         xmin = max(0, int(min(a[0], b[0], c[0])))
         xmax = min(w, int(max(a[0], b[0], c[0])) + 1)
         ymin = max(0, int(min(a[1], b[1], c[1])))
         ymax = min(h, int(max(a[1], b[1], c[1])) + 1)
-        
+
         # Create meshgrid for vectorized computation
         yy, xx = onp.meshgrid(onp.arange(ymin, ymax), onp.arange(xmin, xmax), indexing='ij')
-        
+
         # Pixel centers
         points = onp.stack([xx + 0.5, yy + 0.5], axis=-1)
-        
+
         # Vectorized barycentric coordinates
         v0 = c - a
         v1 = b - a
         v2 = points - a
-        
+
         dot00 = onp.dot(v0, v0)
         dot01 = onp.dot(v0, v1)
         dot11 = onp.dot(v1, v1)
         inv_denom = 1.0 / (dot00 * dot11 - dot01 * dot01 + 1e-10)
-        
+
         dot02 = onp.sum(v0 * v2, axis=-1)
         dot12 = onp.sum(v1 * v2, axis=-1)
-        
+
         u = (dot11 * dot02 - dot01 * dot12) * inv_denom
         v = (dot00 * dot12 - dot01 * dot02) * inv_denom
-        
+
         # Check if inside triangle
         mask = (u >= -border) & (v >= -border) & (u + v <= 1 + border)
-        
+
         # Apply color to masked pixels
         y_idx, x_idx = onp.where(mask)
         img[ymin + y_idx, xmin + x_idx] = color
-    
+
     def _highlight_img(self, img, color=(255, 255, 255), alpha=0.30):
         """Add highlighting to an image (matches your highlight_img function)"""
         blend = img + alpha * (onp.array(color, dtype=onp.uint8) - img)
         img[:, :, :] = onp.clip(blend, 0, 255).astype(onp.uint8)
-    
+
     def _downsample(self, img, factor):
         """Downsample image for anti-aliasing (matches your downsample function)"""
         if factor == 1:
             return img
-        
+
         h, w = img.shape[0] // factor, img.shape[1] // factor
         img_reshaped = img.reshape(h, factor, w, factor, 3)
         return img_reshaped.mean(axis=(1, 3)).astype(onp.uint8)
-    
+
     def get_tile(self, obj, agent_dir=None, agent_hat=False, highlight=False):
         """Get a pre-rendered tile from cache"""
         key = (obj, agent_dir, agent_hat, highlight, self.tile_size)
-        
+
         tile = self.tile_cache.get(key)
         if tile is None:
             # Fallback: render on-the-fly if not in cache
             print(f"Warning: Tile not in cache: {key}")
             self._render_and_cache_tile(obj, agent_dir, agent_hat, highlight)
             tile = self.tile_cache[key]
-        
+
         return tile
-    
+
     def render_grid(self, state, _agents, get_obs_point_fn):
         """Fast rendering using pre-cached tiles"""
         # Convert JAX arrays to numpy for rendering (CPU operation)
         grid = onp.array(state.grid)
         agent_locs = onp.array(state.agent_locs)
         freeze = onp.array(state.freeze)
-        
+
         # Prepare padded grid (matches your original render logic)
         grid = onp.pad(
-            grid, 
-            ((self.PADDING, self.PADDING), (self.PADDING, self.PADDING)), 
+            grid,
+            ((self.PADDING, self.PADDING), (self.PADDING, self.PADDING)),
             constant_values=1  # Items.wall
         )
-        
+
         # Compute highlight mask (for agent observations)
         highlight_mask = onp.zeros_like(grid, dtype=bool)
         for a in range(self.num_agents):
             if freeze[a] > 0:
                 continue
-            
+
             # Use your existing get_obs_point function
             startx, starty = get_obs_point_fn(jnp.array(agent_locs[a]))
             startx, starty = int(startx), int(starty)
-            
+
             highlight_mask[startx:startx+self.OBS_SIZE, starty:starty+self.OBS_SIZE] = True
-        
+
         # Create output image
         h, w = grid.shape
-        img = onp.zeros((h * self.tile_size, w * self.tile_size, 3), 
+        img = onp.zeros((h * self.tile_size, w * self.tile_size, 3),
                        dtype=onp.uint8)
-        
+
         # OPTIMIZED: Vectorized tile placement instead of nested loops
         # Build lookup arrays for all positions at once
         rows, cols = onp.meshgrid(onp.arange(h), onp.arange(w), indexing='ij')
-        
+
         # Pre-compute agent positions for fast lookup
         agent_positions = {}
         for a in range(self.num_agents):
             # Adjust for padding
-            pos = (int(agent_locs[a, 0]) + self.PADDING, 
+            pos = (int(agent_locs[a, 0]) + self.PADDING,
                    int(agent_locs[a, 1]) + self.PADDING)
             agent_positions[pos] = (int(agent_locs[a, 2]), a)
-        
+
         # Fast tile placement with minimal lookups
         for i in range(h):
             for j in range(w):
                 cell = int(grid[i, j])
                 if cell == 0:
                     cell = None
-                
+
                 # Fast agent lookup
                 agent_dir = None
                 if (i, j) in agent_positions:
                     agent_dir, _ = agent_positions[(i, j)]
-                
+
                 highlight = bool(highlight_mask[i, j])
-                
+
                 # Get pre-rendered tile (fast cache lookup)
                 tile = self.get_tile(cell, agent_dir, False, highlight)
-                
+
                 # Place tile in output image
                 y0, y1 = i * self.tile_size, (i + 1) * self.tile_size
                 x0, x1 = j * self.tile_size, (j + 1) * self.tile_size
                 img[y0:y1, x0:x1] = tile
-        
+
         # Crop to actual game area (matches your original render logic)
         crop_size = self.tile_size * (self.PADDING - 1)
         img = img[crop_size:-crop_size, crop_size:-crop_size]
-        
+
         # Rotate to match your coordinate system (matches your rot90 at the end)
         img = onp.rot90(img, 2)
-        
+
         return img
 
 ###################################################
@@ -552,7 +552,7 @@ class Harvest_timeout(MultiAgentEnv):
             ) -> jnp.ndarray:
             '''
             Function for randomly choosing between conflicting interactions.
-            
+
             Args:
                 - key: jax PRNGKey for randomisation.
                 - conflicts: jnp.ndarray of bools where True if agent is in a
@@ -563,7 +563,7 @@ class Harvest_timeout(MultiAgentEnv):
                 agent, and the element at each index is the item found at that
                 agent's respective target location in the grid.
 
-                
+
             Returns:
                 - jnp.ndarray array of final interactions, where each index is
                 an agent, and each element is caught in its interaction beam.
@@ -603,7 +603,7 @@ class Harvest_timeout(MultiAgentEnv):
             ) -> jnp.ndarray:
             '''
             Function for randomly choosing between conflicting interactions.
-            
+
             Args:
                 - key: jax PRNGKey for randomisation.
                 - conflicts: jnp.ndarray of bools where True if agent is in a
@@ -614,7 +614,7 @@ class Harvest_timeout(MultiAgentEnv):
                 agent, and the element at each index is the item found at that
                 agent's respective target location in the grid.
 
-                
+
             Returns:
                 - jnp.ndarray array of final interactions, where each index is
                 an agent, and each element is caught in its interaction beam.
@@ -675,7 +675,7 @@ class Harvest_timeout(MultiAgentEnv):
                 conflicts_matrix,
                 step_arr
             ), step_arr)
-        
+
         # first attempt at func - needs improvement
         # inefficient due to double-checking collisions
         def check_collision(
@@ -683,11 +683,11 @@ class Harvest_timeout(MultiAgentEnv):
             ) -> jnp.ndarray:
             '''
             Function to check agent collisions.
-            
+
             Args:
-                - new_agent_locs: jnp.ndarray, the agent locations at the 
+                - new_agent_locs: jnp.ndarray, the agent locations at the
                 current time step.
-                
+
             Returns:
                 - jnp.ndarray matrix of bool of agents in collision.
             '''
@@ -702,7 +702,7 @@ class Harvest_timeout(MultiAgentEnv):
             )(new_agent_locs, new_agent_locs)
 
             return collisions
-        
+
         # first attempt at func - needs improvement
         # inefficient due to double-checking collisions
         def check_interaction_conflict(
@@ -710,11 +710,11 @@ class Harvest_timeout(MultiAgentEnv):
             ) -> jnp.ndarray:
             '''
             Function to check conflicting interaction targets.
-            
+
             Args:
                 - items: jnp.ndarray, the agent itemss at the interaction
                 targets.
-                
+
             Returns:
                 - jnp.ndarray matrix of bool of agents in collision.
             '''
@@ -837,7 +837,7 @@ class Harvest_timeout(MultiAgentEnv):
             # Prepare random agent selection
             k1, k2 = jax.random.split(key, 2)
             rand_idx = select_random_true_index(k1, collisions)
-            collisions_rand = collisions.at[rand_idx].set(False) # <<<< PROBLEM LINE        
+            collisions_rand = collisions.at[rand_idx].set(False) # <<<< PROBLEM LINE
             new_locs_rand = jax.vmap(
                 lambda p, l, n: jnp.where(p, l, n)
             )(
@@ -873,7 +873,7 @@ class Harvest_timeout(MultiAgentEnv):
                 [False] * collisions.shape[0]
             )
             return ((k2, collided_moved, collision_matrix, agent_locs, new_agent_locs), new_agent_locs)
-        
+
         def combine_channels(
                 grid: jnp.ndarray,
                 agent: int,
@@ -882,9 +882,9 @@ class Harvest_timeout(MultiAgentEnv):
             ):
             '''
             Function to enforce symmetry in observations & generate final
-            feature representation; current agent is permuted to first 
+            feature representation; current agent is permuted to first
             position in the feature dimension.
-            
+
             Args:
                 - grid: jax ndarray of current agent's obs grid
                 - agent: int, an index indicating current agent number
@@ -893,8 +893,8 @@ class Harvest_timeout(MultiAgentEnv):
                 - state: State, the env state obj
             Returns:
                 - grid with current agent [x] permuted to 1st position (after
-                the first 5 "Items" features) in the feature dimension, "other" 
-                [x] agent 2nd, angle [x, x, x, x] 3rd, for a final obs grid of 
+                the first 5 "Items" features) in the feature dimension, "other"
+                [x] agent 2nd, angle [x, x, x, x] 3rd, for a final obs grid of
                 shape (11, 11, 11) - 5 items + 1 self + 1 other + 4 orientation
             '''
             def move_and_collapse(
@@ -942,7 +942,7 @@ class Harvest_timeout(MultiAgentEnv):
                 )
             )(grid, angles)
             return new_grid
-        
+
         def check_relative_orientation(
                 agent: int,
                 agent_locs: jnp.ndarray,
@@ -951,12 +951,12 @@ class Harvest_timeout(MultiAgentEnv):
             '''
             Check's relative orientations of all other agents in view of
             current agent.
-            
+
             Args:
                 - agent: int, an index indicating current agent number
                 - agent_locs: jax ndarray of agent locations (x, y, direction)
                 - grid: jax ndarray of current agent's obs grid
-                
+
             Returns:
                 - grid with 1) int -1 in places where no agent exists, or
                 where the agent is the current agent, and 2) int in range
@@ -986,7 +986,7 @@ class Harvest_timeout(MultiAgentEnv):
             )
 
             return angle
-        
+
         def rotate_grid(agent_loc: jnp.ndarray, grid: jnp.ndarray) -> jnp.ndarray:
             '''
             Rotates agent's observation grid k * 90 degrees, depending on agent's
@@ -1024,12 +1024,12 @@ class Harvest_timeout(MultiAgentEnv):
             agent's current location & orientation.
             Agent is centered in the observation window.
 
-            Args: 
+            Args:
                 - agent_loc: jnp.ndarray, agent x, y, direction.
             Returns:
                 - x, y: ints of top-left corner of agent's obs map.
             '''
-            
+
             x, y, direction = agent_loc
 
             # Add padding to get position in padded grid
@@ -1045,7 +1045,7 @@ class Harvest_timeout(MultiAgentEnv):
             '''
             Obtain the agent's observation of the grid.
 
-            Args: 
+            Args:
                 - state: State object containing env state.
             Returns:
                 - jnp.ndarray of grid observation.
@@ -1089,17 +1089,17 @@ class Harvest_timeout(MultiAgentEnv):
                 num_agents + len(Items) - 1,
                 dtype=jnp.int8
             )
-            
+
             # make index len(Item) always the current agent
             # and sum all others into an "other" agent
             grids = jax.vmap(
                 combine_channels,
-                in_axes=(0, 0, 0, None) 
+                in_axes=(0, 0, 0, None)
             )(
                 grids,
                 self._agents,
                 angles,
-                state  
+                state
             )
 
             frozen_mask = (state.freeze > 0)[:, None, None, None]
@@ -1111,22 +1111,22 @@ class Harvest_timeout(MultiAgentEnv):
         def _interact(
             key: jnp.ndarray, state: State, actions: jnp.ndarray
         ) -> Tuple[jnp.ndarray, jnp.ndarray, State, jnp.ndarray]:
-            
+
             # 1. Flatten inputs
             actions = actions.squeeze()
-            
+
             # 2. Identify who wants to zap
             zaps = jnp.isin(actions, jnp.array([Actions.zap_forward]))
-            
+
             # 3. Safety Lock: Frozen agents cannot zap
             is_unfrozen = state.freeze == 0
             zaps = jnp.logical_and(zaps, is_unfrozen)
 
             interact_idx = jnp.int16(Items.interact)
-            
-            # Define a safe purgatory location for blocked beams 
+
+            # Define a safe purgatory location for blocked beams
             # (Using your requested offset logic to be safe)
-            purgatory_val = -self.OBS_SIZE * 2 
+            purgatory_val = -self.OBS_SIZE * 2
             purgatory_loc = jnp.array([purgatory_val, purgatory_val, 0])
 
             # remove old interacts
@@ -1139,11 +1139,11 @@ class Harvest_timeout(MultiAgentEnv):
                 in_bounds_r = (r >= 0) & (r < self.GRID_SIZE_ROW)
                 in_bounds_c = (c >= 0) & (c < self.GRID_SIZE_COL)
                 is_valid = in_bounds_r & in_bounds_c
-                
+
                 # safe indices for reading (prevents crash, but result only used if valid)
                 safe_r = jnp.clip(r, 0, self.GRID_SIZE_ROW - 1)
                 safe_c = jnp.clip(c, 0, self.GRID_SIZE_COL - 1)
-                
+
                 # If out of bounds, return WALL. Else return actual grid item.
                 return jnp.where(
                     is_valid,
@@ -1154,7 +1154,7 @@ class Harvest_timeout(MultiAgentEnv):
 
             def generate_beam_targets(agent_loc: jnp.ndarray) -> jnp.ndarray:
                 all_targets = []
-                
+
                 # Generate all potential targets
                 for forward in range(1, self.zap_beam_length + 1):
                     if forward == self.zap_beam_length:
@@ -1163,16 +1163,16 @@ class Harvest_timeout(MultiAgentEnv):
                     else:
                         for side_offset in range(-self.zap_beam_width, self.zap_beam_width + 1):
                             target = agent_loc + forward * STEP[agent_loc[2]]
-                            
+
                             if side_offset > 0:
                                 perp_dir = (agent_loc[2] + 1) % 4
                                 target = target + side_offset * STEP[perp_dir]
                             elif side_offset < 0:
                                 perp_dir = (agent_loc[2] - 1) % 4
                                 target = target + abs(side_offset) * STEP[perp_dir]
-                            
+
                             all_targets.append((forward, side_offset, target))
-                
+
                 forwards = jnp.array([t[0] for t in all_targets])
                 sides = jnp.array([t[1] for t in all_targets])
                 targets = jnp.stack([t[2] for t in all_targets])
@@ -1181,38 +1181,38 @@ class Harvest_timeout(MultiAgentEnv):
                 # This treats map edges as walls correctly without wrapping/clipping to self
                 grid_items = jax.vmap(get_item_safe)(targets[:, 0], targets[:, 1])
                 is_wall = grid_items == Items.wall
-                
+
                 # For each lane, find first wall and block everything after
                 def check_blocked(idx):
                     forward = forwards[idx]
                     side = sides[idx]
                     is_wall_here = is_wall[idx]
-                    
+
                     same_lane_mask = sides == side
                     earlier_mask = forwards < forward
                     lane_and_earlier = same_lane_mask & earlier_mask
-                    
+
                     wall_before = jnp.any(jnp.where(lane_and_earlier, is_wall, False))
-                    
+
                     return jnp.logical_or(is_wall_here, wall_before)
-                
+
                 blocked = jax.vmap(check_blocked)(jnp.arange(len(forwards)))
-                
+
                 # Set blocked targets to Purgatory
                 valid_targets = jnp.where(
                     blocked[:, None],
                     purgatory_loc,
                     targets
                 )
-                                
+
                 return valid_targets
 
             # Generate beam targets
             all_beam_targets = jax.vmap(generate_beam_targets)(state.agent_locs)
-            
+
             # Flatten
             all_zaped_locs = all_beam_targets.reshape(-1, 3)
-            
+
             # Valid mask (checks if row is >= 0, filtering out purgatory)
             valid_mask = all_zaped_locs[:, 0] >= 0
 
@@ -1223,7 +1223,7 @@ class Harvest_timeout(MultiAgentEnv):
 
             # Identify what is hit
             def zaped_grid_check(loc, z):
-                # We use get_item_safe again here just to be doubly sure 
+                # We use get_item_safe again here just to be doubly sure
                 # we don't read garbage indices, though valid_mask should catch it.
                 item = get_item_safe(loc[0], loc[1])
                 return jnp.where(z, item, -1)
@@ -1232,16 +1232,16 @@ class Harvest_timeout(MultiAgentEnv):
 
             def check_hit_agent(a):
                 return jnp.isin(a, all_zaped_grid)
-            
+
             hit_agents = jax.vmap(check_hit_agent)(self._agents)
-            
+
             FREEZE_DURATION = 25
             new_freeze = jnp.where(
                 hit_agents,
                 FREEZE_DURATION,
                 state.freeze
             )
-                        
+
             # Update grid visuals
             aux_grid = jnp.copy(state.grid)
 
@@ -1249,7 +1249,7 @@ class Harvest_timeout(MultiAgentEnv):
             # If it's an empty space, we draw the interact beam.
             # If it's an item/agent, we leave it alone (or you can choose to overwrite).
             current_items = jax.vmap(get_item_safe)(all_zaped_locs[:, 0], all_zaped_locs[:, 1])
-            
+
             beam_items = jnp.where(
                 (current_items == Items.empty),
                 interact_idx,   # Draw beam on empty
@@ -1271,7 +1271,7 @@ class Harvest_timeout(MultiAgentEnv):
                 return grid.at[target_r, target_c].set(items, mode='drop')
 
             aux_grid = update_grid_batch(all_zaped_locs, beam_items, qualified_to_zap, aux_grid)
-            
+
             state = state.replace(
                 grid=jnp.where(jnp.any(zaps), aux_grid, state.grid),
                 freeze=new_freeze
@@ -1286,28 +1286,28 @@ class Harvest_timeout(MultiAgentEnv):
         ):
             """Step the environment."""
             actions = jnp.array(actions)
-            
+
             # --- SETUP ---
             locs_at_start = state.agent_locs # Capture starting locations for cleanup
-            
+
             # Purgatory Coordinates
             base_purgatory = -self.OBS_SIZE * 2
             p_cols = jnp.int16(base_purgatory - jnp.arange(self.num_agents))
             p_rows = jnp.full((self.num_agents,), base_purgatory, dtype=jnp.int16)
             p_dirs = jnp.zeros((self.num_agents,), dtype=jnp.int16)
             purgatory_locs = jnp.stack([p_rows, p_cols, p_dirs], axis=-1)
-            
+
             key, subkey = jax.random.split(key)
 
             # ============================================================
             ## PHASE 1: ZAPPING
             # (Identify newly frozen agents and draw beams onto state.grid)
             # ============================================================
-            
+
             # 1. Apply Zapping interaction. _interact clears old beams, calculates, and draws new beams.
             state = _interact(subkey, state, actions)
             freeze_after_zap = state.freeze
-            is_frozen_now = freeze_after_zap > 0 
+            is_frozen_now = freeze_after_zap > 0
 
             # 2. Agents frozen by Zap are prevented from moving
             actions = jnp.where(is_frozen_now, Actions.stay, actions)
@@ -1316,20 +1316,20 @@ class Harvest_timeout(MultiAgentEnv):
             ## PHASE 2: MOVEMENT & APPLE COLLECTION
             # (Calculate final move locations, including forcing frozen to purgatory)
             # ============================================================
-            
+
             key, subkey = jax.random.split(key)
 
             # --- Calculate Proposed Locations (Rotation, Forward Movement, Clipping) ---
             rotated_locs = jax.vmap(
                 lambda p, a: jnp.int16(p + ROTATIONS[a]) % jnp.array(
-                    [self.GRID_SIZE_ROW + 1, self.GRID_SIZE_COL + 1, 4], 
+                    [self.GRID_SIZE_ROW + 1, self.GRID_SIZE_COL + 1, 4],
                     dtype=jnp.int16
                 )
-            )(p=state.agent_locs, a=actions).squeeze()            
-            
+            )(p=state.agent_locs, a=actions).squeeze()
+
             is_move_forward = (actions == Actions.move_forward)
             agent_move = is_move_forward
-            
+
             def apply_forward(p, move_bool):
                 current_dir = p[2]
                 forward_delta = STEP[current_dir]
@@ -1361,7 +1361,7 @@ class Harvest_timeout(MultiAgentEnv):
             new_locs = jax.lax.cond(
                 jnp.max(collided_moved) > 0,
                 lambda: fix_collisions(
-                    subkey, 
+                    subkey,
                     collided_moved,
                     collision_matrix,
                     state.agent_locs,
@@ -1378,7 +1378,7 @@ class Harvest_timeout(MultiAgentEnv):
                 state.grid[new_locs[:, 0], new_locs[:, 1]],
                 jnp.int16(Items.wall)
             )
-            
+
             hit_obstacle = (target_vals != Items.empty) & (target_vals != Items.apple)
             condition_3d = jnp.stack([hit_obstacle, hit_obstacle, hit_obstacle], axis=-1)
             move_mask_3d = jnp.stack([agent_move, agent_move, agent_move], axis=-1)
@@ -1388,7 +1388,7 @@ class Harvest_timeout(MultiAgentEnv):
                 state.agent_locs,
                 new_locs
             )
-            
+
             # Final Purgatory enforcement
             final_move_locs = jnp.where(
                 is_frozen_now[:, None],
@@ -1399,10 +1399,10 @@ class Harvest_timeout(MultiAgentEnv):
             # --- Apple Collection & Inventory Update (Based on final_move_locs) ---
             def apple_matcher(p: jnp.ndarray) -> jnp.ndarray:
                 return jnp.logical_and(
-                    p[0] >= 0, 
+                    p[0] >= 0,
                     state.grid[p[0], p[1]] == Items.apple
                 )
-            
+
             apple_matches = jax.vmap(apple_matcher)(p=final_move_locs).reshape(self.num_agents, 1)
             apple_matches = apple_matches & (~is_frozen_now[:, None]) # Only unfrozen can collect
 
@@ -1412,7 +1412,7 @@ class Harvest_timeout(MultiAgentEnv):
             # ============================================================
             ## PHASE 3: GRID CLEANUP, RESPAWN, & FINAL DRAW (Clear Old -> Draw New)
             # ============================================================
-            
+
             # 1. Decrement Freeze
             new_freeze = jnp.maximum(freeze_after_zap - 1, 0)
             just_unfrozen = (freeze_after_zap > 0) & (new_freeze == 0)
@@ -1454,8 +1454,8 @@ class Harvest_timeout(MultiAgentEnv):
 
             # Assign to unfrozen agents
             unfrozen_indices = jnp.where(
-                just_unfrozen, 
-                jnp.cumsum(just_unfrozen.astype(jnp.int32)) - 1, 
+                just_unfrozen,
+                jnp.cumsum(just_unfrozen.astype(jnp.int32)) - 1,
                 0
             )
 
@@ -1472,8 +1472,8 @@ class Harvest_timeout(MultiAgentEnv):
 
             # CRITICAL: Ensure respawn_locs has the same dtype as state.agent_locs (int16)
             respawn_locs = jnp.stack([
-                selected_spawns[:, 0].astype(jnp.int16), 
-                selected_spawns[:, 1].astype(jnp.int16), 
+                selected_spawns[:, 0].astype(jnp.int16),
+                selected_spawns[:, 1].astype(jnp.int16),
                 player_dir
             ], axis=-1)
 
@@ -1489,20 +1489,20 @@ class Harvest_timeout(MultiAgentEnv):
             def clear_old_body(grid, loc):
                 # Clear only if the agent was actually on the grid
                 return jax.lax.cond(
-                    loc[0] >= 0, 
+                    loc[0] >= 0,
                     lambda g: g.at[loc[0], loc[1]].set(jnp.int16(Items.empty)),
                     lambda g: g,
                     grid
                 )
-            
+
             # Use scan to clear all agent bodies at their starting locations
             # The grid still contains beams and apples at this point.
             grid_temp, _ = jax.lax.scan(
                 lambda grid, loc: (clear_old_body(grid, loc), None),
-                state.grid, 
+                state.grid,
                 locs_at_start
             )
-                
+
             # 2a.2. Clear collected apples (Remove apple item, not agent spot)
             def clear_collected_apple(grid, loc, collected):
                 return jax.lax.cond(
@@ -1517,18 +1517,18 @@ class Harvest_timeout(MultiAgentEnv):
                 grid_temp,
                 (final_move_locs, apple_matches.flatten())
             )
-            
+
             # 2a.3
-            grid_clean_static = grid_temp 
-            
+            grid_clean_static = grid_temp
+
             state = state.replace(grid=grid_clean_static)
 
             # --- 2b.  DRAW STEP: Draw New Agent Positions ---
-            
+
             def place_final_agent(grid, loc, agent_id, frozen):
                 # Only draw if agent is NOT frozen AND location is on the grid (NOT in purgatory)
                 should_draw = jnp.logical_and(frozen == 0, loc[0] >= 0)
-                
+
                 return jax.lax.cond(
                     should_draw,
                     lambda g: g.at[loc[0], loc[1]].set(agent_id),
@@ -1542,22 +1542,22 @@ class Harvest_timeout(MultiAgentEnv):
                 return updated_grid, None
 
             final_grid_with_agents, _ = jax.lax.scan(
-                final_draw_body, 
+                final_draw_body,
                 state.grid, # Use the clean grid (static map, beams, no old agents/apples)
                 (final_locs_post_respawn, self._agents, new_freeze) # Use final locs and final freeze status
             )
 
             state = state.replace(
-                agent_locs=final_locs_post_respawn, 
-                freeze=new_freeze, 
+                agent_locs=final_locs_post_respawn,
+                freeze=new_freeze,
                 grid=final_grid_with_agents
             )
 
             # ============================================================
             ## PHASE 4: APPLE REGROWTH
             # ============================================================
-            
-            grid_apple = state.grid 
+
+            grid_apple = state.grid
 
             def count_apple(apple_locs):
                 apple_nums = jnp.where((grid_apple[apple_locs[0]-1, apple_locs[1]] == 3) & (apple_locs[0]-1 >=0), 1, 0) + \
@@ -1572,21 +1572,21 @@ class Harvest_timeout(MultiAgentEnv):
                                 jnp.where((grid_apple[apple_locs[0]-1, apple_locs[1]+1] == 3) & (apple_locs[0]-1 >=0) & (apple_locs[1]+1 < self.GRID_SIZE_COL), 1, 0) + \
                                 jnp.where((grid_apple[apple_locs[0]+1, apple_locs[1]-1] == 3) & (apple_locs[1]+1 < self.GRID_SIZE_COL) & (apple_locs[1]-1 >=0), 1, 0) + \
                                 jnp.where((grid_apple[apple_locs[0]+1, apple_locs[1]+1] == 3) & (apple_locs[0]+1 < self.GRID_SIZE_ROW) & (apple_locs[1]+1 < self.GRID_SIZE_COL) , 1, 0)
-                
+
                 return apple_nums
 
             near_apple_nums = jax.vmap(count_apple)(self.SPAWNS_APPLE)
-            
+
             def regrow_apple(apple_locs, near_apple, prob):
                 new_apple = jnp.where((((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 0) & (prob > 1)) |
                                     (grid_apple[apple_locs[0], apple_locs[1]] == Items.apple) |
-                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple >= 3) & (prob < 0.025)) |
-                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 2) & (prob < 0.005)) |
-                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 1) & (prob < 0.001)))
+                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple >= 3) & (prob < 0.05)) |
+                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 2) & (prob < 0.02)) |
+                                      ((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 1) & (prob < 0.005)))
                                       ,  Items.apple, Items.empty)
 
                 return new_apple
-            
+
             prob = jax.random.uniform(subkey, shape=(len(self.SPAWNS_APPLE),))
             new_apple = jax.vmap(regrow_apple)(self.SPAWNS_APPLE, near_apple_nums, prob)
             key, subkey = jax.random.split(key)
@@ -1604,7 +1604,7 @@ class Harvest_timeout(MultiAgentEnv):
             # ============================================================
             ## PHASE 5: REWARDS, INFO, & TIMESTEP
             # ============================================================
-            
+
             if self.shared_rewards:
                 rewards = jnp.zeros((self.num_agents, 1))
                 original_rewards = jnp.where(apple_matches, 1, rewards)
@@ -1623,7 +1623,7 @@ class Harvest_timeout(MultiAgentEnv):
                 if self.smooth_rewards:
                     new_smooth_rewards = 0.99 * 0.01* state.smooth_rewards + original_rewards
                     rewards,disadvantageous,advantageous = self.get_inequity_aversion_rewards_immediate(
-                        new_smooth_rewards, self.inequity_aversion_target_agents, 
+                        new_smooth_rewards, self.inequity_aversion_target_agents,
                         state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
                     )
                     state = state.replace(smooth_rewards=new_smooth_rewards)
@@ -1634,7 +1634,7 @@ class Harvest_timeout(MultiAgentEnv):
                     }
                 else:
                     rewards,disadvantageous,advantageous = self.get_inequity_aversion_rewards_immediate(
-                        original_rewards, self.inequity_aversion_target_agents, 
+                        original_rewards, self.inequity_aversion_target_agents,
                         state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
                     )
                     info = {
@@ -1656,13 +1656,13 @@ class Harvest_timeout(MultiAgentEnv):
                 rewards = jnp.zeros((self.num_agents, 1))
                 rewards = jnp.where(apple_matches, 1, rewards)
                 info = {}
-            
+
             AppleCount = jnp.sum(state.grid == Items.apple)
             info["apple_count"] = jnp.zeros((self.num_agents, 1)).squeeze() + AppleCount
             info["agent_locs"] = state.agent_locs
             info["agent_freeze"] = state.freeze
-            
-            
+
+
             state_nxt = State(
                 agent_locs=state.agent_locs,
                 agent_invs=state.agent_invs,
@@ -1704,7 +1704,7 @@ class Harvest_timeout(MultiAgentEnv):
                 done,
                 info,
             )
-        
+
         def _reset_state(
             key: jnp.ndarray
         ) -> State:
@@ -1806,7 +1806,7 @@ class Harvest_timeout(MultiAgentEnv):
         return spaces.Box(
                 low=0, high=1E9, shape=_shape_obs, dtype=jnp.uint8
             ), _shape_obs
-    
+
     def state_space(self) -> spaces.Dict:
         """State space of the environment."""
         _shape = (
@@ -1815,7 +1815,7 @@ class Harvest_timeout(MultiAgentEnv):
             else (self.GRID_SIZE_ROW* self.GRID_SIZE_COL * (NUM_TYPES + 4),)
         )
         return spaces.Box(low=0, high=1, shape=_shape, dtype=jnp.uint8)
-    
+
     def render_tile(
         self,
         obj: int,
@@ -1911,11 +1911,11 @@ class Harvest_timeout(MultiAgentEnv):
     def render(self, state) -> onp.ndarray:
         """Optimized rendering using pre-cached tiles"""
         return self.renderer.render_grid(state, self._agents, self.get_obs_point)
-    
+
     def get_inequity_aversion_rewards_immediate(self, array, inner_t, target_agents=None, alpha=5, beta=0.05):
         """
         Calculate inequity aversion rewards using immediate rewards, based on equation (3) in the paper
-        
+
         Args:
             array: shape: [num_agents, 1] immediate rewards r_i^t for each agent
             target_agents: list of agent indices to apply inequity aversion
@@ -1926,20 +1926,20 @@ class Harvest_timeout(MultiAgentEnv):
         """
         # Ensure correct input shape
         assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
-        
+
         # Calculate inequality using immediate rewards
         r_i = array  # [num_agents, 1]
         r_j = jnp.transpose(array)  # [1, num_agents]
-        
+
         # Calculate inequality
         disadvantageous = jnp.maximum(r_j - r_i, 0)  # when other agents' rewards are higher
         advantageous = jnp.maximum(r_i - r_j, 0)     # when self's rewards are higher
-        
+
         # Create mask to exclude self-comparison
         mask = 1 - jnp.eye(self.num_agents)
         disadvantageous = disadvantageous * mask
         advantageous = advantageous * mask
-        
+
         # Calculate inequality penalty
         n_others = self.num_agents - 1
         inequity_penalty = (alpha * jnp.sum(disadvantageous, axis=1, keepdims=True) +
@@ -1949,7 +1949,7 @@ class Harvest_timeout(MultiAgentEnv):
         subjective_rewards = array - inequity_penalty
 
         subjective_rewards = jnp.where(jnp.all(array == 0), -(alpha + beta) * n_others, subjective_rewards)
-        
+
         # Apply inequity aversion only to target agents if specified
         if target_agents is not None:
             target_agents_array = jnp.array(target_agents)
@@ -1963,7 +1963,7 @@ class Harvest_timeout(MultiAgentEnv):
     def get_svo_rewards(self, array, w=0.5, ideal_angle_degrees=45, target_agents=None):
         """
         Reward shaping function based on Social Value Orientation (SVO)
-        
+
         Args:
             array: shape: [num_agents, 1] immediate rewards r_i for each agent
             w: SVO weight to balance self-reward and social value (0 <= w <= 1)
@@ -1973,28 +1973,28 @@ class Harvest_timeout(MultiAgentEnv):
                - 0 degrees means completely selfish
                - 90 degrees means completely altruistic
             target_agents: list of agent indices to apply SVO
-        
+
         Returns:
             shaped_rewards: rewards adjusted by SVO
             theta: reward angle in radians
         """
         # Ensure correct input shape
         assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
-        
+
         # Convert ideal angle from degrees to radians
         ideal_angle = (ideal_angle_degrees * jnp.pi) / 180.0
-        
+
         # Calculate group average reward r_j (excluding self)
         mask = 1 - jnp.eye(self.num_agents)  # [num_agents, num_agents]
         # Modified: use matrix multiplication to calculate other agents' rewards
         others_rewards = jnp.matmul(mask, array)  # [num_agents, 1]
         mean_others = others_rewards / (self.num_agents - 1)  # divide by number of other agents
-        
+
         # Calculate reward angle θ(R) = arctan(r_j / r_i)
         r_i = array  # [num_agents, 1]
         r_j = mean_others  # [num_agents, 1]
         theta = jnp.arctan2(r_j, r_i)
-        
+
         # Calculate social value oriented utility
         # U(r_i, r_j) = r_i - w * |θ(R) - ideal_angle|
         angle_deviation = jnp.abs(theta - ideal_angle)
@@ -2016,31 +2016,31 @@ class Harvest_timeout(MultiAgentEnv):
         """
         # Ensure correct input shape
         assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
-        
+
         # Convert ideal angle from degrees to radians
         ideal_angle = (ideal_angle_degrees * jnp.pi) / 180.0
-        
+
         # Calculate group average reward r_j (excluding self)
         mask = 1 - jnp.eye(self.num_agents)
         others_rewards = jnp.matmul(mask, array)
         mean_others = others_rewards / (self.num_agents - 1)
-        
+
         # Calculate reward angle θ(R) = arctan(r_j / r_i)
         r_i = array
         r_j = mean_others
         theta = jnp.arctan2(r_j, r_i)
-        
+
         # Convert angle to [0, 2π] range
         theta = (theta + 2 * jnp.pi) % (2 * jnp.pi)
-        
+
         # Calculate angle deviation and normalize to [0, 1] range
         angle_deviation = jnp.abs(theta - ideal_angle)
         angle_deviation = jnp.minimum(angle_deviation, 2 * jnp.pi - angle_deviation)  # take minimum deviation
         normalized_deviation = angle_deviation / jnp.pi  # normalize to [0, 1]
-        
+
         # Use multiplicative form of penalty instead of subtraction
         svo_utility = r_i * (1 - w * normalized_deviation)
-        
+
         # Apply SVO only to target agents if specified
         if target_agents is not None:
             target_agents_array = jnp.array(target_agents)

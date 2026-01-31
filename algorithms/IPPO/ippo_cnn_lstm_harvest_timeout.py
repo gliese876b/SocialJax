@@ -13,7 +13,7 @@ from typing import Sequence, NamedTuple, Any
 from flax.training.train_state import TrainState
 # from flax.training import checkpoints
 import distrax
-from gymnax.wrappers.purerl import FlattenObservationWrapper
+from gymnax.wrappers.purerl import LogWrapper, FlattenObservationWrapper
 import socialjax
 from socialjax.wrappers.baselines import LogWrapper, SVOLogWrapper
 import hydra
@@ -70,37 +70,66 @@ class CNN(nn.Module):
         return x
 
 
-class ActorCritic(nn.Module):
+class ActorCriticLSTM(nn.Module):
     action_dim: Sequence[int]
     activation: str = "relu"
+    hidden_size: int = 128  # LSTM hidden size
 
     @nn.compact
-    def __call__(self, x):
+    def __call__(self, x, hidden_state):
+        """
+        Args:
+            x: observations (batch, H, W, C)
+            hidden_state: tuple of (h, c) each with shape (batch, hidden_size)
+        Returns:
+            pi: action distribution
+            value: state value
+            new_hidden_state: updated (h, c)
+        """
         if self.activation == "relu":
             activation = nn.relu
         else:
             activation = nn.tanh
 
+        # CNN embedding
         embedding = CNN(self.activation)(x)
 
+        # LSTM layer
+        # embedding shape: (batch, 64)
+        # Reshape for LSTM: (batch, 1, 64) - sequence length of 1
+        lstm_input = jnp.expand_dims(embedding, axis=1)
+
+        # Initialize LSTM cell
+        lstm = nn.OptimizedLSTMCell(features=self.hidden_size)
+
+        # Unpack hidden state
+        h, c = hidden_state
+        carry = (h, c)
+
+        # Run LSTM for one timestep
+        new_carry, lstm_output = lstm(carry, lstm_input[:, 0, :])
+        new_h, new_c = new_carry
+
+        # Actor head
         actor_mean = nn.Dense(
             64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(embedding)
+        )(lstm_output)
         actor_mean = activation(actor_mean)
         actor_mean = nn.Dense(
             self.action_dim, kernel_init=orthogonal(0.01), bias_init=constant(0.0)
         )(actor_mean)
         pi = distrax.Categorical(logits=actor_mean)
 
+        # Critic head
         critic = nn.Dense(
             64, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0)
-        )(embedding)
+        )(lstm_output)
         critic = activation(critic)
         critic = nn.Dense(1, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(
             critic
         )
 
-        return pi, jnp.squeeze(critic, axis=-1)
+        return pi, jnp.squeeze(critic, axis=-1), (new_h, new_c)
 
 
 class Transition(NamedTuple):
@@ -111,6 +140,95 @@ class Transition(NamedTuple):
     log_prob: jnp.ndarray
     obs: jnp.ndarray
     info: jnp.ndarray
+    # Add hidden states
+    h: jnp.ndarray  # LSTM hidden state
+    c: jnp.ndarray  # LSTM cell state
+
+
+def get_rollout(params, config):
+    env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
+
+    hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
+    if config["PARAMETER_SHARING"]:
+        network = ActorCriticLSTM(
+            env.action_space().n,
+            activation=config["ACTIVATION"],
+            hidden_size=hidden_size
+        )
+    else:
+        network = [
+            ActorCriticLSTM(
+                env.action_space().n,
+                activation=config["ACTIVATION"],
+                hidden_size=hidden_size
+            ) for _ in range(env.num_agents)
+        ]
+
+    key = jax.random.PRNGKey(0)
+    key, key_r, key_a = jax.random.split(key, 3)
+
+    done = False
+
+    obs, state = env.reset(key_r)
+    state_seq = [state]
+
+    # Initialize hidden states
+    if config["PARAMETER_SHARING"]:
+        h = jnp.zeros((env.num_agents, hidden_size))
+        c = jnp.zeros((env.num_agents, hidden_size))
+        hidden = (h, c)
+    else:
+        hidden = [
+            (jnp.zeros((1, hidden_size)), jnp.zeros((1, hidden_size)))
+            for _ in range(env.num_agents)
+        ]
+
+    for o in range(config["GIF_NUM_FRAMES"]):
+        print(o)
+        key, key_a0, key_a1, key_s = jax.random.split(key, 4)
+
+        obs_batch = jnp.stack([obs[a] for a in env.agents]).reshape(-1, *env.observation_space()[0].shape)
+        if config["PARAMETER_SHARING"]:
+            h, c = hidden
+            pi, value, new_hidden = network.apply(params, obs_batch, (h, c))
+            action = pi.sample(seed=key_a0)
+            env_act = unbatchify(
+                action, env.agents, 1, env.num_agents
+            )
+            hidden = new_hidden
+        else:
+            env_act = {}
+            new_hidden = []
+            for i in range(env.num_agents):
+                h_i, c_i = hidden[i]
+                obs_single = jnp.expand_dims(obs_batch[i], axis=0)
+                pi, value, new_hidden_i = network[i].apply(params[i], obs_single, (h_i, c_i))
+                action = pi.sample(seed=key_a0)
+                env_act[env.agents[i]] = action
+                new_hidden.append(new_hidden_i)
+            hidden = new_hidden
+
+        env_act = {k: v.squeeze() for k, v in env_act.items()}
+
+        # STEP ENV
+        obs, state, reward, done, info = env.step(key_s, state, env_act)
+        done = done["__all__"]
+
+        # Reset hidden states if done
+        if done:
+            if config["PARAMETER_SHARING"]:
+                h = jnp.zeros((env.num_agents, hidden_size))
+                c = jnp.zeros((env.num_agents, hidden_size))
+                hidden = (h, c)
+            else:
+                hidden = [
+                    (jnp.zeros((1, hidden_size)), jnp.zeros((1, hidden_size)))
+                    for _ in range(env.num_agents)
+                ]
+
+        state_seq.append(state)
+
+    return state_seq
 
 
 def batchify(x: dict, agent_list, num_actors):
@@ -154,20 +272,38 @@ def make_train(config):
         return config["LR"] * frac
 
     def train(rng):
-
         # INIT NETWORK
+        hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
+
         if config["PARAMETER_SHARING"]:
-            network = ActorCritic(env.action_space().n, activation=config["ACTIVATION"])
+            network = ActorCriticLSTM(
+                env.action_space().n,
+                activation=config["ACTIVATION"],
+                hidden_size=hidden_size
+            )
         else:
-            network = [ActorCritic(env.action_space().n, activation=config["ACTIVATION"]) for _ in range(env.num_agents)]
+            network = [
+                ActorCriticLSTM(
+                    env.action_space().n,
+                    activation=config["ACTIVATION"],
+                    hidden_size=hidden_size
+                ) for _ in range(env.num_agents)
+            ]
 
         rng, _rng = jax.random.split(rng)
         init_x = jnp.zeros((1, *(env.observation_space()[0]).shape))
+        # Initialize hidden state for network initialization
+        init_h = jnp.zeros((1, hidden_size))
+        init_c = jnp.zeros((1, hidden_size))
+        init_hidden = (init_h, init_c)
 
         if config["PARAMETER_SHARING"]:
-            network_params = network.init(_rng, init_x)
+            network_params = network.init(_rng, init_x, init_hidden)
         else:
-            network_params = [network[i].init(_rng, init_x) for i in range(env.num_agents)]
+            network_params = [
+                network[i].init(_rng, init_x, init_hidden)
+                for i in range(env.num_agents)
+            ]
         if config["ANNEAL_LR"]:
             tx = optax.chain(
                 optax.clip_by_global_norm(config["MAX_GRAD_NORM"]),
@@ -196,43 +332,76 @@ def make_train(config):
         reset_rng = jax.random.split(_rng, config["NUM_ENVS"])
         obsv, env_state = jax.vmap(env.reset, in_axes=(0,))(reset_rng)
 
+        # Initialize hidden states
+        hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
+        if config["PARAMETER_SHARING"]:
+            init_h = jnp.zeros((config["NUM_ACTORS"], hidden_size))
+            init_c = jnp.zeros((config["NUM_ACTORS"], hidden_size))
+            init_hidden = (init_h, init_c)
+        else:
+            init_hidden = [
+                (
+                    jnp.zeros((config["NUM_ENVS"], hidden_size)),
+                    jnp.zeros((config["NUM_ENVS"], hidden_size))
+                ) for _ in range(env.num_agents)
+            ]
+
         # TRAIN LOOP
         def _update_step(runner_state, unused):
             # COLLECT TRAJECTORIES
             def _env_step(runner_state, unused):
-                train_state, env_state, last_obs, update_step, rng = runner_state
+                train_state, env_state, last_obs, last_hidden, update_step, rng = runner_state
 
                 # SELECT ACTION
                 rng, _rng = jax.random.split(rng)
 
-                # obs_batch = jnp.stack([last_obs[a] for a in env.agents]).reshape(-1, *env.observation_space().shape)
-
                 if config["PARAMETER_SHARING"]:
-                    obs_batch = jnp.transpose(last_obs,(1,0,2,3,4)).reshape(-1, *(env.observation_space()[0]).shape)
-                    print("input_obs_shape", obs_batch.shape)
-                    pi, value = network.apply(train_state.params, obs_batch)
+                    obs_batch = jnp.transpose(last_obs, (1,0,2,3,4)).reshape(
+                        -1, *(env.observation_space()[0]).shape
+                    )
+                    # last_hidden is tuple (h, c), each shape: (num_actors, hidden_size)
+                    h_batch, c_batch = last_hidden
+
+                    pi, value, new_hidden = network.apply(
+                        train_state.params, obs_batch, (h_batch, c_batch)
+                    )
                     action = pi.sample(seed=_rng)
                     log_prob = pi.log_prob(action)
+
                     env_act = unbatchify(
                         action, env.agents, config["NUM_ENVS"], env.num_agents
                     )
+                    new_h, new_c = new_hidden
+
                 else:
-                    obs_batch = jnp.transpose(last_obs,(1,0,2,3,4))
+                    obs_batch = jnp.transpose(last_obs, (1,0,2,3,4))
                     env_act = {}
                     log_prob = []
                     value = []
+                    new_h_list = []
+                    new_c_list = []
+
                     for i in range(env.num_agents):
-                        print("input_obs_shape", obs_batch[i].shape)
                         rng, _rng_agent = jax.random.split(rng)
-                        pi, value_i = network[i].apply(train_state[i].params, obs_batch[i])
+                        # last_hidden is list of tuples [(h_0, c_0), (h_1, c_1), ...]
+                        # Each h_i, c_i has shape (num_envs, hidden_size)
+                        h_i, c_i = last_hidden[i]
+
+                        pi, value_i, new_hidden_i = network[i].apply(
+                            train_state[i].params, obs_batch[i], (h_i, c_i)
+                        )
                         action = pi.sample(seed=_rng_agent)
                         log_prob.append(pi.log_prob(action))
                         env_act[env.agents[i]] = action
                         value.append(value_i)
 
+                        new_h_i, new_c_i = new_hidden_i
+                        new_h_list.append(new_h_i)
+                        new_c_list.append(new_c_i)
 
+                    new_h = jnp.stack(new_h_list, axis=0)
+                    new_c = jnp.stack(new_c_list, axis=0)
 
-                # env_act = {k: v.flatten() for k, v in env_act.items()}
                 env_act = [v for v in env_act.values()]
 
                 # STEP ENV
@@ -243,47 +412,68 @@ def make_train(config):
                     env.step, in_axes=(0, 0, 0)
                 )(rng_step, env_state, env_act)
 
-                # Define a function to conditionally reshape based on dimensionality
-                def reshape_if_scalar(x):
-                    # Check if the array is multi-dimensional (like agent_locs, which is (N, 3))
-                    # Multi-dimensional arrays are returned as-is.
-                    if x.ndim > 1:
-                        return x
-                    # If it's a 1D vector (like freeze status, apple count), reshape it to (N, 1)
-                    # This is safe and mathematically valid.
-                    return x.reshape((config["NUM_ACTORS"]), 1)
-
+                # Reset hidden states where episode is done
+                # done shape varies, need to handle carefully
                 if config["PARAMETER_SHARING"]:
-                    info = jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)
+                    done_expanded = batchify_dict(done, env.agents, config["NUM_ACTORS"])
+                    done_expanded = done_expanded.reshape(-1, 1)  # (num_actors, 1)
+
+                    # Reset hidden states to zero where done
+                    new_h = new_h * (1 - done_expanded)
+                    new_c = new_c * (1 - done_expanded)
+
+                    new_hidden = (new_h, new_c)
+
+                    info = jax.tree_util.tree_map(
+                        lambda x: x.reshape((config["NUM_ACTORS"])), info
+                    )
                     transition = Transition(
-                        batchify_dict(done, env.agents, config["NUM_ACTORS"]).squeeze(),
+                        done_expanded.squeeze(),
                         action,
                         value,
                         batchify(reward, env.agents, config["NUM_ACTORS"]).squeeze(),
                         log_prob,
                         obs_batch,
                         info,
-                        )
+                        h_batch,  # Store OLD hidden states
+                        c_batch,
+                    )
                 else:
                     transition = []
-                    done = [v for v in done.values()]
+                    done_list = [v for v in done.values()]
+
                     for i in range(env.num_agents):
+                        # done_list[i] shape: (num_envs,)
+                        done_expanded_i = done_list[i].reshape(-1, 1)  # (num_envs, 1)
+
+                        # Reset hidden state for this agent
+                        new_h_list[i] = new_h_list[i] * (1 - done_expanded_i)
+                        new_c_list[i] = new_c_list[i] * (1 - done_expanded_i)
+
                         info_i = {
                             key: jax.tree_util.tree_map(
-                                reshape_if_scalar,
+                                lambda x: x.reshape((config["NUM_ACTORS"]), 1) if x.ndim == 1
+                                else x,
                                 value[:, i]
                             ) for key, value in info.items()
                         }
+
+                        h_i, c_i = last_hidden[i]
                         transition.append(Transition(
-                            done[i],
+                            done_list[i],
                             env_act[i],
                             value[i],
-                            reward[:,i],
+                            reward[:, i],
                             log_prob[i],
                             obs_batch[i],
                             info_i,
+                            h_i,  # Store OLD hidden states
+                            c_i,
                         ))
-                runner_state = (train_state, env_state, obsv, update_step, rng)
+
+                    new_hidden = [(new_h_list[i], new_c_list[i]) for i in range(env.num_agents)]
+
+                runner_state = (train_state, env_state, obsv, new_hidden, update_step, rng)
                 return runner_state, transition
 
             runner_state, traj_batch = jax.lax.scan(
@@ -291,15 +481,18 @@ def make_train(config):
             )
 
             # CALCULATE ADVANTAGE
-            train_state, env_state, last_obs, update_step, rng = runner_state
+            train_state, env_state, last_obs, last_hidden, update_step, rng = runner_state
+
             if config["PARAMETER_SHARING"]:
                 last_obs_batch = jnp.transpose(last_obs,(1,0,2,3,4)).reshape(-1, *(env.observation_space()[0]).shape)
-                _, last_val = network.apply(train_state.params, last_obs_batch)
+                h, c = last_hidden  # Unpack hidden states
+                _, last_val, _ = network.apply(train_state.params, last_obs_batch, (h, c))  # Add hidden states
             else:
                 last_obs_batch = jnp.transpose(last_obs,(1,0,2,3,4))
                 last_val = []
                 for i in range(env.num_agents):
-                    _, last_val_i = network[i].apply(train_state[i].params, last_obs_batch[i])
+                    h_i, c_i = last_hidden[i]  # Unpack hidden states for each agent
+                    _, last_val_i, _ = network[i].apply(train_state[i].params, last_obs_batch[i], (h_i, c_i))  # Add hidden states
                     last_val.append(last_val_i)
                 last_val = jnp.stack(last_val, axis=0)
 
@@ -347,7 +540,9 @@ def make_train(config):
 
                     def _loss_fn(params, traj_batch, gae, targets, network_used):
                         # RERUN NETWORK
-                        pi, value = network_used.apply(params, traj_batch.obs)
+                        pi, value, _ = network_used.apply(
+                            params, traj_batch.obs, (traj_batch.h, traj_batch.c)
+                        )
                         log_prob = pi.log_prob(traj_batch.action)
                         # CALCULATE VALUE LOSS
                         value_pred_clipped = traj_batch.value + (
@@ -401,7 +596,13 @@ def make_train(config):
                 batch = jax.tree_util.tree_map(
                         lambda x: x.reshape((batch_size,) + x.shape[2:]), batch
                     )
+                # if config["PARAMETER_SHARING"]:
 
+                # else:
+                #     batch = jax.tree_util.tree_map(
+                #         lambda x: x.reshape((batch_size,) + x.shape[2:]),  # 保持第一个维度为batch_size，自动计算第二个维度
+                #         batch
+                #     )
                 shuffled_batch = jax.tree_util.tree_map(
                     lambda x: jnp.take(x, permutation, axis=0), batch
                 )
@@ -551,7 +752,7 @@ def make_train(config):
                     video_env,
                     output_dir,
                     config,
-                    save_video=True,
+                    save_video=False, # FIXME: temporarily disabled
                     step=step
                 )
                 print(f"✓ Video generated and logged to WandB for step {step}")
@@ -594,11 +795,11 @@ def make_train(config):
                     operand=None,
                 )
 
-            runner_state = (train_state, env_state, last_obs, update_step, rng)
+            runner_state = (train_state, env_state, last_obs, last_hidden, update_step, rng)
             return runner_state, metric
 
         rng, _rng = jax.random.split(rng)
-        runner_state = (train_state, env_state, obsv, 0, _rng)
+        runner_state = (train_state, env_state, obsv, init_hidden, 0, _rng)
         runner_state, metric = jax.lax.scan(
             _update_step, runner_state, None, config["NUM_UPDATES"]
         )
@@ -744,16 +945,38 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
     # Create eval environment
     eval_env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
 
+    hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
     if config["PARAMETER_SHARING"]:
-        network = ActorCritic(eval_env.action_space().n, activation=config["ACTIVATION"])
+        network = ActorCriticLSTM(
+            eval_env.action_space().n,
+            activation=config["ACTIVATION"],
+            hidden_size=hidden_size
+        )
     else:
-        network = [ActorCritic(eval_env.action_space().n, activation=config["ACTIVATION"])
-                   for _ in range(eval_env.num_agents)]
+        network = [
+            ActorCriticLSTM(
+                eval_env.action_space().n,
+                activation=config["ACTIVATION"],
+                hidden_size=hidden_size
+            ) for _ in range(eval_env.num_agents)
+        ]
 
     def run_single_episode(rng):
-        """Run a single episode and return cumulative rewards per agent"""
+        """Run a single episode with LSTM hidden states"""
         rng, _rng = jax.random.split(rng)
         obs, state = eval_env.reset(_rng)
+
+        # Initialize hidden states
+        hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
+        if config["PARAMETER_SHARING"]:
+            h = jnp.zeros((eval_env.num_agents, hidden_size))
+            c = jnp.zeros((eval_env.num_agents, hidden_size))
+            hidden = (h, c)
+        else:
+            hidden = [
+                (jnp.zeros((1, hidden_size)), jnp.zeros((1, hidden_size)))
+                for _ in range(eval_env.num_agents)
+            ]
 
         # Initialize episode rewards
         episode_rewards = jnp.zeros(eval_env.num_agents)
@@ -766,34 +989,47 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
 
         def episode_step(carry, t):
             """Single step in the episode"""
-            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, current_total_freeze_steps, steps_taken, rng, done) = carry
+            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, current_total_freeze_steps, steps_taken, rng, done, hidden) = carry
 
-            # Select actions
+            # Select actions with hidden states
             if config["PARAMETER_SHARING"]:
-                # obs is dict with shape per agent: (H, W, C)
-                # Stack to: (num_agents, H, W, C)
                 obs_batch = jnp.stack([obs[a] for a in eval_env.agents])
-                # Reshape for network: (num_agents, H, W, C) -> already correct shape
-                pi, _ = network.apply(params, obs_batch)
+                h, c = hidden
+                pi, _, new_hidden = network.apply(params, obs_batch, (h, c))
                 rng, _rng = jax.random.split(rng)
                 action = pi.sample(seed=_rng)
                 env_act = unbatchify(action, eval_env.agents, 1, eval_env.num_agents)
                 env_act = [v.squeeze() for v in env_act.values()]
             else:
-                # obs is dict, stack to (num_agents, H, W, C)
                 obs_batch = jnp.stack([obs[a] for a in eval_env.agents])
                 env_act = []
+                new_hidden = []
                 for i in range(eval_env.num_agents):
-                    # Add batch dimension: (H, W, C) -> (1, H, W, C)
                     obs_single = jnp.expand_dims(obs_batch[i], axis=0)
-                    pi, _ = network[i].apply(params[i], obs_single)
+                    h_i, c_i = hidden[i]
+                    pi, _, new_hidden_i = network[i].apply(params[i], obs_single, (h_i, c_i))
                     rng, _rng = jax.random.split(rng)
                     action = pi.sample(seed=_rng)
                     env_act.append(action.squeeze())
+                    new_hidden.append(new_hidden_i)
 
             # Step environment
             rng, _rng = jax.random.split(rng)
             obs, state, reward, done_dict, info = eval_env.step(_rng, state, env_act)
+
+            # Reset hidden states where done
+            done_flag = done_dict["__all__"]
+            if config["PARAMETER_SHARING"]:
+                new_h, new_c = new_hidden
+                new_h = new_h * (1 - done_flag)
+                new_c = new_c * (1 - done_flag)
+                new_hidden = (new_h, new_c)
+            else:
+                for i in range(eval_env.num_agents):
+                    new_h_i, new_c_i = new_hidden[i]
+                    new_h_i = new_h_i * (1 - done_flag)
+                    new_c_i = new_c_i * (1 - done_flag)
+                    new_hidden[i] = (new_h_i, new_c_i)
 
             # Accumulate rewards (only if not done)
             done_flag = done_dict["__all__"]
@@ -814,15 +1050,15 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
 
             steps_taken = steps_taken + (1 - done_flag)
 
-            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, new_total_freeze_steps, steps_taken, rng, done_flag), None
+            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, new_total_freeze_steps, steps_taken, rng, done_flag, new_hidden), None
 
         # Run episode for max steps
         max_steps = config["ENV_KWARGS"].get("num_inner_steps", 1000)
         (_, _, final_rewards, final_pos_sum, final_pos_counts,
-         final_freeze_steps, final_steps, _, _), _ = jax.lax.scan(
+         final_freeze_steps, final_steps, _, _, _), _ = jax.lax.scan(
             episode_step,
             (obs, state, episode_rewards, positive_reward_timesteps_sum,
-             positive_reward_counts, total_freeze_steps, 0.0, rng, False),
+             positive_reward_counts, total_freeze_steps, 0.0, rng, False, hidden),
             jnp.arange(max_steps),
             length=max_steps
         )
@@ -909,6 +1145,18 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
     # Initialize return tracking
     episode_rewards = {f"player_{i}": 0.0 for i in range(env.num_agents)}
 
+    # Initialize hidden states
+    hidden_size = config.get("LSTM_HIDDEN_SIZE", 128)
+    if config["PARAMETER_SHARING"]:
+        h = jnp.zeros((env.num_agents, hidden_size))
+        c = jnp.zeros((env.num_agents, hidden_size))
+        hidden = (h, c)
+    else:
+        hidden = [
+            (jnp.zeros((1, hidden_size)), jnp.zeros((1, hidden_size)))
+            for _ in range(env.num_agents)
+        ]
+
     pics = []
     if save_video:
         img = env.render(state)
@@ -919,23 +1167,39 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
         # Get actions using the policy
         if config["PARAMETER_SHARING"]:
             obs_batch = jnp.stack([obs[a] for a in env.agents]).reshape(-1, *env.observation_space()[0].shape)
-            network = ActorCritic(action_dim=env.action_space().n, activation="relu")
-            pi, _ = network.apply(params, obs_batch)
+            network = ActorCriticLSTM(
+                action_dim=env.action_space().n,
+                activation="relu",
+                hidden_size=hidden_size
+            )
+            h, c = hidden
+            pi, _, new_hidden = network.apply(params, obs_batch, (h, c))
             rng, _rng = jax.random.split(rng)
             actions = pi.sample(seed=_rng)
             env_act = {k: v.squeeze() for k, v in unbatchify(
                 actions, env.agents, 1, env.num_agents
             ).items()}
+            hidden = new_hidden
         else:
             obs_batch = jnp.stack([obs[a] for a in env.agents])
             env_act = {}
-            network = [ActorCritic(action_dim=env.action_space().n, activation="relu") for _ in range(env.num_agents)]
+            network = [
+                ActorCriticLSTM(
+                    action_dim=env.action_space().n,
+                    activation="relu",
+                    hidden_size=hidden_size
+                ) for _ in range(env.num_agents)
+            ]
+            new_hidden = []
             for i in range(env.num_agents):
-                obs = jnp.expand_dims(obs_batch[i], axis=0)
-                pi, _ = network[i].apply(params[i], obs)
+                obs_single = jnp.expand_dims(obs_batch[i], axis=0)
+                h_i, c_i = hidden[i]
+                pi, _, new_hidden_i = network[i].apply(params[i], obs_single, (h_i, c_i))
                 rng, _rng = jax.random.split(rng)
                 single_action = pi.sample(seed=_rng)
                 env_act[env.agents[i]] = single_action
+                new_hidden.append(new_hidden_i)
+            hidden = new_hidden
 
         # Step environment
         rng, _rng = jax.random.split(rng)
@@ -946,6 +1210,18 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
             episode_rewards[f"player_{i}"] += float(reward[i])
 
         done = done["__all__"]
+
+        # Reset hidden states if done
+        if done:
+            if config["PARAMETER_SHARING"]:
+                h = jnp.zeros((env.num_agents, hidden_size))
+                c = jnp.zeros((env.num_agents, hidden_size))
+                hidden = (h, c)
+            else:
+                hidden = [
+                    (jnp.zeros((1, hidden_size)), jnp.zeros((1, hidden_size)))
+                    for _ in range(env.num_agents)
+                ]
 
         # Render if saving GIF
         if save_video:
@@ -965,7 +1241,7 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
         imageio.mimsave(
             mp4_path,
             frames,
-            fps=8,
+            fps=8, 
             codec='libx264',
             quality=8,
             pixelformat='yuv420p'
@@ -1049,7 +1325,7 @@ def tune(default_config):
     wandb.agent(sweep_id, wrapped_make_train, count=1000)
 
 
-@hydra.main(version_base=None, config_path="config", config_name="ippo_cnn_harvest_timeout")
+@hydra.main(version_base=None, config_path="config", config_name="ippo_cnn_lstm_harvest_timeout")
 def main(config):
     if config["TUNE"]:
         tune(config)

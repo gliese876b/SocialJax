@@ -1,15 +1,16 @@
-"LR": 0.00005
-"NUM_ENVS": 32
-"NUM_STEPS": 1000
+"LR": 0.00001
+"NUM_ENVS": 16
+"NUM_STEPS": 256
 "TOTAL_TIMESTEPS": 1e8
 "UPDATE_EPOCHS": 2
-"NUM_MINIBATCHES": 16
+"NUM_MINIBATCHES": 8
 "GAMMA": 0.99
 "GAE_LAMBDA": 0.95
 "CLIP_EPS": 0.2
-"ENT_COEF": 0.05
+"ENT_COEF": 0.01
 "VF_COEF": 0.5
 "MAX_GRAD_NORM": 5.0
+"LSTM_HIDDEN_SIZE": 64
 "ACTIVATION": "relu"
 "ENV_NAME": "harvest_timeout"
 "ENV_KWARGS":
@@ -21,7 +22,7 @@
 
 
 "ANNEAL_LR": True
-"SEED": 2
+"SEED": 0
 "NUM_SEEDS": 1
 "TUNE": False
 
@@ -30,7 +31,7 @@
 "PARAMETER_SHARING": False
 
 # Evaluation settings
-"EVAL_INTERVAL": 20    # Evaluate every N iterations
+"EVAL_INTERVAL": 50    # Evaluate every N iterations
 "EVAL_EPISODES": 5     # Number of episodes per evaluation
 
 # WandB Params
