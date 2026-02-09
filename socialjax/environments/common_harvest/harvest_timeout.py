@@ -111,6 +111,31 @@ def ascii_map_to_matrix(map_ASCII, char_to_int):
 
     return matrix
 
+def generate_agent_colors_by_group(num_agents, group_assignments):
+    """
+    Generate colors for agents based on their group.
+    Agents in the same group get the same color.
+    """
+    
+    # Get unique groups
+    unique_groups = onp.unique(group_assignments)
+    num_groups = len(unique_groups)
+    
+    # Generate one color per group
+    group_colors = {}
+    for i, group_id in enumerate(unique_groups):
+        hue = i / num_groups
+        rgb = colorsys.hsv_to_rgb(hue, 0.8, 0.8)
+        group_colors[group_id] = tuple(int(x * 255) for x in rgb)
+    
+    # Assign colors to agents based on their group
+    agent_colors = []
+    for agent_idx in range(num_agents):
+        group_id = group_assignments[agent_idx]
+        agent_colors.append(group_colors[group_id])
+    
+    return agent_colors
+
 def generate_agent_colors(num_agents):
     colors = []
     for i in range(num_agents):
@@ -455,6 +480,7 @@ class Harvest_timeout(MultiAgentEnv):
         num_outer_steps=1,
         num_agents=10,
         shared_rewards=False,
+        group_assignments=None,
         zap_beam_width=1,      # cells on each side (1 means 3 total width)
         zap_beam_length=5,     # cells forward (2 means checks 1 and 2 ahead)
         inequity_aversion=False,
@@ -504,13 +530,33 @@ class Harvest_timeout(MultiAgentEnv):
         self.svo_w = svo_w
         self.svo_ideal_angle_degrees = svo_ideal_angle_degrees
         self.smooth_rewards = enable_smooth_rewards
-        self.PLAYER_COLOURS = generate_agent_colors(num_agents)
         self.GRID_SIZE_ROW = grid_size[0]
         self.GRID_SIZE_COL = grid_size[1]
         self.OBS_SIZE = obs_size
         self.PADDING = self.OBS_SIZE - 1
         self.num_inner_steps = num_inner_steps
         self.num_outer_steps = num_outer_steps
+
+        # Generate colors based on grouping
+        if group_assignments is None:
+            self.PLAYER_COLOURS = generate_agent_colors(num_agents)
+        else:
+            import numpy as np
+            self.PLAYER_COLOURS = generate_agent_colors_by_group(
+                num_agents, 
+                np.array(group_assignments)
+            )
+
+        if group_assignments is None:
+            self.group_assignments = jnp.arange(num_agents, dtype=jnp.int16)
+            self.unique_groups = jnp.arange(num_agents, dtype=jnp.int16)
+        else:
+            assert len(group_assignments) == num_agents, \
+                f"group_assignments length {len(group_assignments)} must match num_agents {num_agents}"
+            self.group_assignments = jnp.array(group_assignments, dtype=jnp.int16)
+            # Precompute unique groups using numpy (outside JIT)
+            import numpy as np
+            self.unique_groups = jnp.array(np.unique(group_assignments), dtype=jnp.int16)
 
         GRID = jnp.zeros(
             (self.GRID_SIZE_ROW + 2 * self.PADDING, self.GRID_SIZE_COL + 2 * self.PADDING),
@@ -1605,62 +1651,71 @@ class Harvest_timeout(MultiAgentEnv):
             ## PHASE 5: REWARDS, INFO, & TIMESTEP
             # ============================================================
 
-            if self.shared_rewards:
-                rewards = jnp.zeros((self.num_agents, 1))
-                original_rewards = jnp.where(apple_matches, 1, rewards)
+            # Compute individual apple collection rewards
+            rewards = jnp.zeros((self.num_agents, 1))
+            individual_rewards = jnp.where(apple_matches, 1, rewards)
 
-                rewards_sum_all_agents = jnp.zeros((self.num_agents, 1))
-                rewards_sum = jnp.sum(original_rewards)
-                rewards_sum_all_agents += rewards_sum
-                rewards = rewards_sum_all_agents
+            # Apply group-based reward sharing
+            if self.shared_rewards:
+                # Global sharing (all agents share all rewards)
+                rewards_sum = jnp.sum(individual_rewards)
+                rewards = jnp.full((self.num_agents, 1), rewards_sum)
                 info = {
-                    "original_rewards": original_rewards.squeeze(),
-                    "shaped_rewards": rewards.squeeze(),
-                }
-            elif self.inequity_aversion:
-                rewards = jnp.zeros((self.num_agents, 1))
-                original_rewards = jnp.where(apple_matches, 1, rewards) * self.num_agents
-                if self.smooth_rewards:
-                    new_smooth_rewards = 0.99 * 0.01* state.smooth_rewards + original_rewards
-                    rewards,disadvantageous,advantageous = self.get_inequity_aversion_rewards_immediate(
-                        new_smooth_rewards, self.inequity_aversion_target_agents,
-                        state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
-                    )
-                    state = state.replace(smooth_rewards=new_smooth_rewards)
-                    info = {
-                        "original_rewards": original_rewards.squeeze(),
-                        "smooth_rewards": state.smooth_rewards.squeeze(),
-                        "shaped_rewards": rewards.squeeze(),
-                    }
-                else:
-                    rewards,disadvantageous,advantageous = self.get_inequity_aversion_rewards_immediate(
-                        original_rewards, self.inequity_aversion_target_agents,
-                        state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
-                    )
-                    info = {
-                        "original_rewards": original_rewards.squeeze(),
-                        "shaped_rewards": rewards.squeeze(),
-                    }
-            elif self.svo:
-                rewards = jnp.zeros((self.num_agents, 1))
-                original_rewards = jnp.where(apple_matches, 1, rewards) * self.num_agents
-                rewards, theta = self.get_svo_rewards(
-                    original_rewards, self.svo_w, self.svo_ideal_angle_degrees, self.svo_target_agents
-                )
-                info = {
-                    "original_rewards": original_rewards.squeeze(),
-                    "svo_theta": theta.squeeze(),
+                    "original_rewards": individual_rewards.squeeze(),
                     "shaped_rewards": rewards.squeeze(),
                 }
             else:
-                rewards = jnp.zeros((self.num_agents, 1))
-                rewards = jnp.where(apple_matches, 1, rewards)
-                info = {}
+                # Group-based sharing (agents share within their groups)
+                rewards = self.compute_group_shared_rewards(individual_rewards)
+                
+                # Apply additional reward shaping if needed
+                if self.inequity_aversion:
+                    original_rewards = rewards * self.num_agents
+                    if self.smooth_rewards:
+                        new_smooth_rewards = 0.99 * 0.01 * state.smooth_rewards + original_rewards
+                        rewards, disadvantageous, advantageous = self.get_inequity_aversion_rewards_immediate(
+                            new_smooth_rewards, self.inequity_aversion_target_agents,
+                            state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
+                        )
+                        state = state.replace(smooth_rewards=new_smooth_rewards)
+                        info = {
+                            "original_rewards": individual_rewards.squeeze(),
+                            "group_shared_rewards": (rewards / self.num_agents).squeeze(),
+                            "smooth_rewards": state.smooth_rewards.squeeze(),
+                            "shaped_rewards": rewards.squeeze(),
+                        }
+                    else:
+                        rewards, disadvantageous, advantageous = self.get_inequity_aversion_rewards_immediate(
+                            original_rewards, self.inequity_aversion_target_agents,
+                            state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
+                        )
+                        info = {
+                            "original_rewards": individual_rewards.squeeze(),
+                            "group_shared_rewards": (rewards / self.num_agents).squeeze(),
+                            "shaped_rewards": rewards.squeeze(),
+                        }
+                elif self.svo:
+                    original_rewards = rewards * self.num_agents
+                    rewards, theta = self.get_svo_rewards(
+                        original_rewards, self.svo_w, self.svo_ideal_angle_degrees, self.svo_target_agents
+                    )
+                    info = {
+                        "original_rewards": individual_rewards.squeeze(),
+                        "group_shared_rewards": (rewards / self.num_agents).squeeze(),
+                        "svo_theta": theta.squeeze(),
+                        "shaped_rewards": rewards.squeeze(),
+                    }
+                else:
+                    info = {
+                        "original_rewards": individual_rewards.squeeze(),
+                        "group_shared_rewards": rewards.squeeze(),
+                    }
 
             AppleCount = jnp.sum(state.grid == Items.apple)
             info["apple_count"] = jnp.zeros((self.num_agents, 1)).squeeze() + AppleCount
             info["agent_locs"] = state.agent_locs
             info["agent_freeze"] = state.freeze
+            info["apples_collected"] = apple_matches.squeeze().astype(jnp.int32)
 
 
             state_nxt = State(
@@ -1778,6 +1833,24 @@ class Harvest_timeout(MultiAgentEnv):
             self.reset = reset
             self.get_obs_point = _get_obs_point
         ################################################################################
+
+    def compute_group_shared_rewards(self, individual_rewards):
+        """JIT-compatible version using precomputed unique groups."""
+        group_assignments = self.group_assignments
+        unique_groups = self.unique_groups  # Precomputed in __init__
+        
+        def compute_group_reward(group_id):
+            in_group = (group_assignments == group_id).astype(jnp.float32)
+            group_size = jnp.sum(in_group)
+            group_total = jnp.sum(individual_rewards.squeeze() * in_group)
+            per_agent_share = group_total / jnp.maximum(group_size, 1.0)
+            return jnp.where(in_group, per_agent_share, 0.0)
+        
+        # Vectorize over groups
+        all_group_rewards = jax.vmap(compute_group_reward)(unique_groups)
+        shared_rewards = jnp.sum(all_group_rewards, axis=0)
+        
+        return shared_rewards.reshape(-1, 1)
 
     @property
     def name(self) -> str:

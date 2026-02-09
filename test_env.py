@@ -244,7 +244,7 @@ def run_episode(
     max_steps=1000,
     seed=None,
     save_path="test_episode.mp4",
-    fps=5
+    fps=8
 ):
     """
     Run a single episode in the environment
@@ -258,6 +258,7 @@ def run_episode(
         save_path: Path to save the video (supports .mp4, .gif, .avi)
         fps: Frames per second for video
     """
+    
     # Create environment
     env_kwargs = env_kwargs or {}
     env = socialjax.make(env_name, **env_kwargs)
@@ -497,7 +498,13 @@ def main():
         default=False,
         help="whether to use common rewards"
     )
-
+    parser.add_argument(
+        "--group_assignments",
+        type=int,
+        nargs='+',
+        default=None,
+        help="group assignments"
+    )
 
     args = parser.parse_args()
     
@@ -509,6 +516,8 @@ def main():
         env_kwargs["num_inner_steps"] = args.num_inner_steps
     if args.shared_rewards is not None:
         env_kwargs["shared_rewards"] = args.shared_rewards
+    if args.group_assignments is not None:
+        env_kwargs["group_assignments"] = args.group_assignments
 
     # Run episode
     run_episode(

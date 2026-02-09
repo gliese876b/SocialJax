@@ -763,10 +763,17 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         positive_reward_counts = jnp.zeros(eval_env.num_agents)
 
         total_freeze_steps = jnp.zeros(eval_env.num_agents)
+        
+        # ... existing initializations ...
+        num_actions = eval_env.action_space().n # Get dynamically
+        
+        # Trackers
+        action_counts = jnp.zeros((eval_env.num_agents, num_actions))
+        apple_counts = jnp.zeros(eval_env.num_agents)
 
         def episode_step(carry, t):
             """Single step in the episode"""
-            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, current_total_freeze_steps, steps_taken, rng, done) = carry
+            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, current_total_freeze_steps, steps_taken, current_actions, current_apples, rng, done) = carry
 
             # Select actions
             if config["PARAMETER_SHARING"]:
@@ -811,18 +818,23 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
 
             # Accumulate the total steps spent frozen (only if episode is not done)
             new_total_freeze_steps = current_total_freeze_steps + is_frozen * (1 - done_flag)
+            
+            action_updates = jax.nn.one_hot(info["actions_taken"], num_actions)
+            new_actions = current_actions + action_updates * (1 - done_flag)
+            
+            new_apples = current_apples + info["apples_collected"] * (1 - done_flag)
 
             steps_taken = steps_taken + (1 - done_flag)
 
-            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, new_total_freeze_steps, steps_taken, rng, done_flag), None
+            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, new_total_freeze_steps, steps_taken, new_actions, new_apples, rng, done_flag), None
 
         # Run episode for max steps
         max_steps = config["ENV_KWARGS"].get("num_inner_steps", 1000)
         (_, _, final_rewards, final_pos_sum, final_pos_counts,
-         final_freeze_steps, final_steps, _, _), _ = jax.lax.scan(
+         final_freeze_steps, final_steps, final_actions, final_apples, _, _), _ = jax.lax.scan(
             episode_step,
             (obs, state, episode_rewards, positive_reward_timesteps_sum,
-             positive_reward_counts, total_freeze_steps, 0.0, rng, False),
+             positive_reward_counts, total_freeze_steps, 0.0, action_counts, apple_counts, rng, False),
             jnp.arange(max_steps),
             length=max_steps
         )
@@ -866,7 +878,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         # T is the effective number of steps taken (max(final_steps, 1.0))
         peace_metric = N - (sum_freeze_steps / T)
 
-        return final_rewards, sustainability, equality, peace_metric
+        return final_rewards, sustainability, equality, peace_metric, final_actions, final_apples
 
     # Generate random seeds for each episode
     rng = jax.random.PRNGKey(eval_seed)
