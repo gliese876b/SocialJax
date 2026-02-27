@@ -17,12 +17,12 @@
   "num_inner_steps" : 1000
   "shared_rewards" : False  # Attention: switch to False for individual rewards; True for common rewards
   "cnn" : True
-  "group_assignments" : [1, 1, 1, 1, 1, 2, 2, 2, 2, 2]
+  "reward_multipliers": [0.5, 0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5, 1.5]
   "jit" : True
 
 
 "ANNEAL_LR": True
-"SEED": 3
+"SEED": 0
 "NUM_SEEDS": 1
 "TUNE": False
 

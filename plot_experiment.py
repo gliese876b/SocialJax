@@ -136,7 +136,7 @@ def bootstrap_confidence_interval(dataset, confidence=0.95, iterations=10000, sa
     return lval, uval
 
 
-def get_algorithm_styles(algorithms: List[str], palette="colorblind") -> Dict[str, Dict[str, str]]:
+def get_algorithm_styles(algorithms: List[str], palette="Spectral") -> Dict[str, Dict[str, str]]:
     """Returns a mapping of colors, linestyles and legends for each algorithm"""
     color_map = {}
     linestyle_map = {}

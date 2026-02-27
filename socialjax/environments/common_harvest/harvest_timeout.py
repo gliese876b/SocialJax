@@ -116,24 +116,24 @@ def generate_agent_colors_by_group(num_agents, group_assignments):
     Generate colors for agents based on their group.
     Agents in the same group get the same color.
     """
-    
+
     # Get unique groups
     unique_groups = onp.unique(group_assignments)
     num_groups = len(unique_groups)
-    
+
     # Generate one color per group
     group_colors = {}
     for i, group_id in enumerate(unique_groups):
         hue = i / num_groups
         rgb = colorsys.hsv_to_rgb(hue, 0.8, 0.8)
         group_colors[group_id] = tuple(int(x * 255) for x in rgb)
-    
+
     # Assign colors to agents based on their group
     agent_colors = []
     for agent_idx in range(num_agents):
         group_id = group_assignments[agent_idx]
         agent_colors.append(group_colors[group_id])
-    
+
     return agent_colors
 
 def generate_agent_colors(num_agents):
@@ -481,6 +481,7 @@ class Harvest_timeout(MultiAgentEnv):
         num_agents=10,
         shared_rewards=False,
         group_assignments=None,
+        reward_multipliers=None,
         zap_beam_width=1,      # cells on each side (1 means 3 total width)
         zap_beam_length=5,     # cells forward (2 means checks 1 and 2 ahead)
         inequity_aversion=False,
@@ -543,9 +544,17 @@ class Harvest_timeout(MultiAgentEnv):
         else:
             import numpy as np
             self.PLAYER_COLOURS = generate_agent_colors_by_group(
-                num_agents, 
+                num_agents,
                 np.array(group_assignments)
             )
+
+        # Reward multipliers (per-agent scalar applied after group sharing)
+        if reward_multipliers is None:
+            self.reward_multipliers = jnp.ones(num_agents, dtype=jnp.float32)
+        else:
+            assert len(reward_multipliers) == num_agents, \
+                f"reward_multipliers length {len(reward_multipliers)} must match num_agents {num_agents}"
+            self.reward_multipliers = jnp.array(reward_multipliers, dtype=jnp.float32)
 
         if group_assignments is None:
             self.group_assignments = jnp.arange(num_agents, dtype=jnp.int16)
@@ -1660,14 +1669,16 @@ class Harvest_timeout(MultiAgentEnv):
                 # Global sharing (all agents share all rewards)
                 rewards_sum = jnp.sum(individual_rewards)
                 rewards = jnp.full((self.num_agents, 1), rewards_sum)
+                rewards = rewards * self.reward_multipliers.reshape(-1, 1)
                 info = {
                     "original_rewards": individual_rewards.squeeze(),
                     "shaped_rewards": rewards.squeeze(),
                 }
             else:
                 # Group-based sharing (agents share within their groups)
-                rewards = self.compute_group_shared_rewards(individual_rewards)
-                
+                rewards = self.compute_group_shared_rewards(individual_rewards, new_freeze)
+                rewards = rewards * self.reward_multipliers.reshape(-1, 1)
+
                 # Apply additional reward shaping if needed
                 if self.inequity_aversion:
                     original_rewards = rewards * self.num_agents
@@ -1716,7 +1727,7 @@ class Harvest_timeout(MultiAgentEnv):
             info["agent_locs"] = state.agent_locs
             info["agent_freeze"] = state.freeze
             info["apples_collected"] = apple_matches.squeeze().astype(jnp.int32)
-
+            info["actions_taken"] = actions.squeeze() # shape: (num_agents,)
 
             state_nxt = State(
                 agent_locs=state.agent_locs,
@@ -1834,22 +1845,22 @@ class Harvest_timeout(MultiAgentEnv):
             self.get_obs_point = _get_obs_point
         ################################################################################
 
-    def compute_group_shared_rewards(self, individual_rewards):
+    def compute_group_shared_rewards(self, individual_rewards, freeze):
         """JIT-compatible version using precomputed unique groups."""
         group_assignments = self.group_assignments
         unique_groups = self.unique_groups  # Precomputed in __init__
-        
+
         def compute_group_reward(group_id):
             in_group = (group_assignments == group_id).astype(jnp.float32)
             group_size = jnp.sum(in_group)
             group_total = jnp.sum(individual_rewards.squeeze() * in_group)
             per_agent_share = group_total / jnp.maximum(group_size, 1.0)
-            return jnp.where(in_group, per_agent_share, 0.0)
-        
+            return jnp.where((in_group > 0) & (freeze == 0), per_agent_share, 0.0) # only active agents gets reward
+
         # Vectorize over groups
         all_group_rewards = jax.vmap(compute_group_reward)(unique_groups)
         shared_rewards = jnp.sum(all_group_rewards, axis=0)
-        
+
         return shared_rewards.reshape(-1, 1)
 
     @property

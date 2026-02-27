@@ -453,109 +453,90 @@ def make_train(config):
 
                 jax.clear_caches()
 
-                """Run evaluation and append results to JSON file"""
-                print(f"\n{'='*60}")
-                print(f"Running evaluation at step {step}...")
-                print(f"{'='*60}")
-
-                # Use different seed for evaluation
+                # --- UI & COMPUTATION ---
+                print(f"\n{'='*60}\nRunning evaluation at step {step}...\n{'='*60}")
                 eval_seed = config["SEED"] + int(step) + 999999
+                eval_results = run_evaluation_episodes(params, config, eval_seed, num_episodes=config["EVAL_EPISODES"])
+                
+                summary_data = eval_results["summary"]
+                raw_data = eval_results["raw"]
 
-                eval_data = run_evaluation_episodes(
-                    params,
-                    config,
-                    eval_seed,
-                    num_episodes=config["EVAL_EPISODES"],
-                )
+                # Print summary to console
+                for key, values in summary_data.items():
+                    print(f"  {key}: {np.mean(values):.2f} ± {np.std(values):.2f}")
 
-                # Print summary
-                print(f"\nEvaluation Results (step {step}):")
-                print(f"  Episodes: {config['EVAL_EPISODES']}")
-                for key, values in eval_data.items():
-                    mean_val = np.mean(values)
-                    std_val = np.std(values)
-                    print(f"  {key}: {mean_val:.2f} ± {std_val:.2f}")
-                print(f"{'='*60}\n")
+                # --- LOGGING TO WANDB ---
+                for key, values in summary_data.items():
+                    wandb.log({f"eval/{key}_mean": float(np.mean(values)), "eval/step": int(step)})
 
-                # Log to wandb
-                for key, values in eval_data.items():
-                    wandb.log({
-                        f"eval/{key}_mean": float(np.mean(values)),
-                        f"eval/{key}_std": float(np.std(values)),
-                        "eval/step": int(step)
-                    })
-
-                # UPDATE JSON FILE INCREMENTALLY
-                output_dir = f"{config['RUN_OUTPUT_DIR'] }/evaluation"
+                output_dir = f"{config['RUN_OUTPUT_DIR']}/evaluation"
                 os.makedirs(output_dir, exist_ok=True)
+                env_name = config["ENV_NAME"]
+                seed_name = f"seed_{config['SEED']}"
 
-                json_filename = f"{config['ENV_NAME']}_ippo_seed_{config['SEED']}.json"
-                json_path = os.path.join(output_dir, json_filename)
-
-                # Read existing data or create new structure
+                # --- PART A: UPDATE GENERAL JSON (Standard Structure) ---
+                json_path = os.path.join(output_dir, f"{env_name}_ippo_seed_{config['SEED']}.json")
+                
                 if os.path.exists(json_path):
-                    with open(json_path, 'r') as f:
-                        marl_eval_data = json.load(f)
+                    with open(json_path, 'r') as f: main_data = json.load(f)
                 else:
-                    # Initialize MARL-eval structure
-                    env_name = config["ENV_NAME"]
-                    algo_name = "ippo"
-                    seed_name = f"seed_{config['SEED']}"
+                    main_data = {"socialjax": {env_name: {"ippo": {seed_name: {}}}}}
 
-                    marl_eval_data = {
-                        "socialjax": {
-                            f"{env_name}": {
-                                algo_name: {
-                                    seed_name: {}
-                                }
-                            }
-                        }
+                seed_results = main_data["socialjax"][env_name]["ippo"][seed_name]
+                step_key = f"step_{len([k for k in seed_results.keys() if k.startswith('step_')])}"
+                seed_results[step_key] = {"step_count": int(step), **summary_data}
+                seed_results["absolute_metrics"] = {k: [float(np.mean(v))] for k, v in summary_data.items()}
+
+                with open(json_path, 'w') as f: json.dump(main_data, f, indent=2)
+
+                # --- PART B: UPDATE AGENT JSONs (Expanded Action Metrics) ---
+                for agent_idx in range(env.num_agents):
+                    agent_algo_name = f"ippo (agent {agent_idx})"
+                    agent_path = os.path.join(output_dir, f"{env_name}_ippo_agent_{agent_idx}_seed_{config['SEED']}.json")
+
+                    if os.path.exists(agent_path):
+                        with open(agent_path, 'r') as f: agent_data = json.load(f)
+                    else:
+                        agent_data = {"socialjax": {env_name: {agent_algo_name: {seed_name: {}}}}}
+
+                    # Extract basic metrics
+                    agent_metrics = {
+                        "return": raw_data["returns"][:, agent_idx].tolist(),
+                        "apples_collected": raw_data["apples"][:, agent_idx].tolist(),
+                        "frozen_steps": raw_data["freeze_steps"][:, agent_idx].tolist(),
+                        "sustainability": raw_data["pos_reward_timesteps"][:, agent_idx].tolist(),
                     }
 
-                # Navigate to the seed results dict
-                env_name = config["ENV_NAME"]
-                algo_name = "ippo"
-                seed_name = f"seed_{config['SEED']}"
-                seed_results = marl_eval_data["socialjax"][f"{env_name}"][algo_name][seed_name]
+                    # raw_data["actions"] shape: (num_episodes, num_agents, num_actions)
+                    # Extract actions for this specific agent: (num_episodes, num_actions)
+                    agent_action_counts = raw_data["actions"][:, agent_idx, :]
+                    num_actions = agent_action_counts.shape[-1]
 
-                # Count existing steps to get the next step index
-                existing_steps = [k for k in seed_results.keys() if k.startswith("step_")]
-                step_idx = len(existing_steps)
+                    # Create a separate list of counts for each individual action
+                    for action_id in range(num_actions):
+                        metric_name = f"action_{action_id}_count"
+                        # Get the count of this specific action across all episodes
+                        agent_metrics[metric_name] = agent_action_counts[:, action_id].tolist()
 
-                # Add this evaluation checkpoint
-                seed_results[f"step_{step_idx}"] = {
-                    "step_count": int(step),
-                    **eval_data
-                }
+                    a_seed_results = agent_data["socialjax"][env_name][agent_algo_name][seed_name]
+                    a_step_key = f"step_{len([k for k in a_seed_results.keys() if k.startswith('step_')])}"
+                    
+                    # Store in identical format
+                    a_seed_results[a_step_key] = {"step_count": int(step), **agent_metrics}
+                    a_seed_results["absolute_metrics"] = {k: [float(np.mean(v))] for k, v in agent_metrics.items()}
 
-                # Update absolute metrics (always use the latest evaluation as final)
-                seed_results["absolute_metrics"] = {
-                    key: [float(np.mean(values))]
-                    for key, values in eval_data.items()
-                }
+                    with open(agent_path, 'w') as f: json.dump(agent_data, f, indent=2)
 
-                # Write back to file
-                with open(json_path, 'w') as f:
-                    json.dump(marl_eval_data, f, indent=2)
+                # Check if this is the final update of the training run
+                is_final_step = (step >= config["TOTAL_TIMESTEPS"])
 
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"[{timestamp}] ✓ Updated {json_path} with step {step_idx} (step_count={int(step)})")
-
-                video_env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
-
-                print("\n" + "="*60)
-                print(f"Generating video for step {step}...")
-                print("="*60)
-                evaluate(
-                    params,
-                    video_env,
-                    output_dir,
-                    config,
-                    save_video=True,
-                    step=step
-                )
-                print(f"✓ Video generated and logged to WandB for step {step}")
-
+                if is_final_step:
+                    print(f"\nGenerating FINAL video for step {step}...")
+                    video_env = socialjax.make(env_name, **config["ENV_KWARGS"])
+                    evaluate(params, video_env, output_dir, config, save_video=True, step=step)
+                else:
+                    print(f"\nSkipping video generation for step {step} (Only saved at final step).")
+                
                 jax.clear_caches()
 
             update_step = update_step + 1
@@ -764,7 +745,6 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
 
         total_freeze_steps = jnp.zeros(eval_env.num_agents)
         
-        # ... existing initializations ...
         num_actions = eval_env.action_space().n # Get dynamically
         
         # Trackers
@@ -820,7 +800,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
             new_total_freeze_steps = current_total_freeze_steps + is_frozen * (1 - done_flag)
             
             action_updates = jax.nn.one_hot(info["actions_taken"], num_actions)
-            new_actions = current_actions + action_updates * (1 - done_flag)
+            new_actions = current_actions + action_updates * (1 - done_flag) * (1 - is_frozen[:, None]) # count actions only when the agent is alive
             
             new_apples = current_apples + info["apples_collected"] * (1 - done_flag)
 
@@ -878,31 +858,37 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         # T is the effective number of steps taken (max(final_steps, 1.0))
         peace_metric = N - (sum_freeze_steps / T)
 
-        return final_rewards, sustainability, equality, peace_metric, final_actions, final_apples
+        # Normalize action counts by (Total Steps - Frozen Steps)
+        alive_steps = max_steps - final_freeze_steps
+        final_actions_norm = final_actions / (alive_steps[:, None] + 1e-8)
+
+        return final_rewards, sustainability, equality, peace_metric, final_actions_norm, final_apples, avg_positive_reward_timesteps, final_freeze_steps
 
     # Generate random seeds for each episode
     rng = jax.random.PRNGKey(eval_seed)
     episode_rngs = jax.random.split(rng, num_episodes)
 
     # Run all episodes in parallel using vmap
-    all_episode_rewards, all_sustainability, all_equality, all_peace = jax.vmap(run_single_episode)(episode_rngs)
+    all_episode_rewards, all_sustainability, all_equality, all_peace, all_actions, all_apples, all_positive_reward_timesteps, all_freeze_steps = jax.vmap(run_single_episode)(episode_rngs)
 
-    # Convert to MARL-eval format
-    all_returns = {}
-    for i in range(eval_env.num_agents):
-        all_returns[f"player_{i}_return"] = all_episode_rewards[:, i].tolist()
+    # 1. Summary dictionary for the ORIGINAL general JSON (No player_i_returns)
+    summary_metrics = {
+        "return": jnp.mean(all_episode_rewards, axis=1).tolist(),
+        "sustainability": all_sustainability.tolist(),
+        "equality": all_equality.tolist(),
+        "peace": all_peace.tolist(),
+    }
 
-    # Calculate mean return across agents for each episode
-    mean_returns = jnp.mean(all_episode_rewards, axis=1)
-    all_returns["return"] = mean_returns.tolist()
+    # 2. Raw dictionary for the AGENT-SPECIFIC JSONs
+    raw_data = {
+        "returns": all_episode_rewards,           # Shape: (episodes, agents)
+        "actions": all_actions,                   # Shape: (episodes, agents, action_dim) 
+        "apples": all_apples,                     # Shape: (episodes, agents)
+        "freeze_steps": all_freeze_steps,         # Shape: (episodes, agents)
+        "pos_reward_timesteps": all_positive_reward_timesteps # Shape: (episodes, agents)
+    }
 
-    # Add all metrics
-    all_returns["sustainability"] = all_sustainability.tolist()
-    all_returns["equality"] = all_equality.tolist()
-    all_returns["peace"] = all_peace.tolist()
-
-    return all_returns
-
+    return {"summary": summary_metrics, "raw": raw_data}
 
 def evaluate(params, env, save_path, config, save_video=True, step=0):
     """
