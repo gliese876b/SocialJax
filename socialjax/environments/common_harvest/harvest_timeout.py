@@ -39,6 +39,7 @@ class State:
 
     freeze: jnp.ndarray
     reborn_locs: jnp.ndarray
+    smooth_rewards: jnp.ndarray
 
 @chex.dataclass
 class EnvParams:
@@ -480,19 +481,12 @@ class Harvest_timeout(MultiAgentEnv):
         num_outer_steps=1,
         num_agents=10,
         shared_rewards=False,
+        default_reward: float = 0.0,
         group_assignments=None,
         reward_multipliers=None,
         zap_beam_width=1,      # cells on each side (1 means 3 total width)
         zap_beam_length=5,     # cells forward (2 means checks 1 and 2 ahead)
-        inequity_aversion=False,
-        inequity_aversion_target_agents=None,
-        inequity_aversion_alpha=5,
-        inequity_aversion_beta=0.05,
-        enable_smooth_rewards=False,
-        svo=False,
-        svo_target_agents=None,
-        svo_w=0.5,
-        svo_ideal_angle_degrees=45,
+        intrinsic_motivation=None,
         grid_size=(11, 27),
         jit=True,
         obs_size=11,
@@ -518,25 +512,36 @@ class Harvest_timeout(MultiAgentEnv):
         self.agents = list(range(num_agents))#, dtype=jnp.int16)
         self._agents = jnp.array(self.agents, dtype=jnp.int16) + len(Items)
         self.shared_rewards = shared_rewards
+        self.default_reward = default_reward
         self.zap_beam_width = zap_beam_width
         self.zap_beam_length = zap_beam_length
         self.cnn = cnn
-        self.inequity_aversion = inequity_aversion
-        self.inequity_aversion_target_agents = inequity_aversion_target_agents
-        self.inequity_aversion_alpha = inequity_aversion_alpha
-        self.inequity_aversion_beta = inequity_aversion_beta
-        self.enable_smooth_rewards = enable_smooth_rewards
-        self.svo = svo
-        self.svo_target_agents = svo_target_agents
-        self.svo_w = svo_w
-        self.svo_ideal_angle_degrees = svo_ideal_angle_degrees
-        self.smooth_rewards = enable_smooth_rewards
         self.GRID_SIZE_ROW = grid_size[0]
         self.GRID_SIZE_COL = grid_size[1]
         self.OBS_SIZE = obs_size
         self.PADDING = self.OBS_SIZE - 1
         self.num_inner_steps = num_inner_steps
         self.num_outer_steps = num_outer_steps
+
+        # Normalize to plain dict (handles OmegaConf DictConfig from YAML)
+        if intrinsic_motivation is not None and not isinstance(intrinsic_motivation, dict):
+            intrinsic_motivation = dict(intrinsic_motivation)
+
+        self.im_type = None
+        self.im_cfg  = {}
+
+        if intrinsic_motivation is not None:
+            assert "im_type" in intrinsic_motivation, \
+                "intrinsic_motivation dict must have a 'type' key"
+            self.im_type = intrinsic_motivation["im_type"]
+            assert self.im_type in ("ia", "svo"), \
+                f"Unknown intrinsic_motivation type: '{self.im_type}'. Must be 'ia' or 'svo'."
+            self.im_cfg = {k: v for k, v in intrinsic_motivation.items() if k != "im_type"}
+
+        # Pull out gamma/lambda for smooth reward update (shared by both IA and SVO)
+        self.im_gamma  = self.im_cfg.get("im_gamma",  0.99)
+        self.im_lambda = self.im_cfg.get("im_lambda", 0.9)
+
 
         # Generate colors based on grouping
         if group_assignments is None:
@@ -1660,67 +1665,50 @@ class Harvest_timeout(MultiAgentEnv):
             ## PHASE 5: REWARDS, INFO, & TIMESTEP
             # ============================================================
 
-            # Compute individual apple collection rewards
-            rewards = jnp.zeros((self.num_agents, 1))
-            individual_rewards = jnp.where(apple_matches, 1, rewards)
+            # --- Base individual rewards ---
+            individual_rewards = jnp.where(
+                apple_matches, 1.0, jnp.zeros((self.num_agents, 1))
+            ) + self.default_reward
 
-            # Apply group-based reward sharing
+            # --- Reward multipliers applied first ---
+            rewards = individual_rewards * self.reward_multipliers.reshape(-1, 1)
+
+            # --- Group sharing (shares the already-multiplied rewards) ---
             if self.shared_rewards:
-                # Global sharing (all agents share all rewards)
-                rewards_sum = jnp.sum(individual_rewards)
-                rewards = jnp.full((self.num_agents, 1), rewards_sum)
-                rewards = rewards * self.reward_multipliers.reshape(-1, 1)
+                rewards = self.compute_group_shared_rewards(rewards, new_freeze)
+
+            # --- Intrinsic motivation ---
+            if self.im_type is not None:
+                new_smooth = (
+                    self.im_gamma * self.im_lambda * state.smooth_rewards
+                    + rewards.squeeze()  # r_i^t is post-multiplier, post-sharing
+                )
+                state = state.replace(smooth_rewards=new_smooth)
+
+                if self.im_type == "ia":
+                    rewards, _, _ = self._apply_ia(
+                        rewards, new_smooth,
+                        **{k: v for k, v in self.im_cfg.items()
+                           if k not in ("im_gamma", "im_lambda")}
+                    )
+                elif self.im_type == "svo":
+                    rewards, _ = self._apply_svo(
+                        rewards, new_smooth,
+                        **{k: v for k, v in self.im_cfg.items()
+                           if k not in ("im_gamma", "im_lambda")}
+                    )
+
                 info = {
-                    "original_rewards": individual_rewards.squeeze(),
-                    "shaped_rewards": rewards.squeeze(),
+                    "original_rewards":  individual_rewards.squeeze(),
+                    "final_rewards":     rewards.squeeze(),
+                    "smooth_rewards":    new_smooth,
+                    "shaped_rewards":    rewards.squeeze(),
                 }
             else:
-                # Group-based sharing (agents share within their groups)
-                rewards = self.compute_group_shared_rewards(individual_rewards, new_freeze)
-                rewards = rewards * self.reward_multipliers.reshape(-1, 1)
-
-                # Apply additional reward shaping if needed
-                if self.inequity_aversion:
-                    original_rewards = rewards * self.num_agents
-                    if self.smooth_rewards:
-                        new_smooth_rewards = 0.99 * 0.01 * state.smooth_rewards + original_rewards
-                        rewards, disadvantageous, advantageous = self.get_inequity_aversion_rewards_immediate(
-                            new_smooth_rewards, self.inequity_aversion_target_agents,
-                            state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
-                        )
-                        state = state.replace(smooth_rewards=new_smooth_rewards)
-                        info = {
-                            "original_rewards": individual_rewards.squeeze(),
-                            "group_shared_rewards": (rewards / self.num_agents).squeeze(),
-                            "smooth_rewards": state.smooth_rewards.squeeze(),
-                            "shaped_rewards": rewards.squeeze(),
-                        }
-                    else:
-                        rewards, disadvantageous, advantageous = self.get_inequity_aversion_rewards_immediate(
-                            original_rewards, self.inequity_aversion_target_agents,
-                            state.inner_t, self.inequity_aversion_alpha, self.inequity_aversion_beta
-                        )
-                        info = {
-                            "original_rewards": individual_rewards.squeeze(),
-                            "group_shared_rewards": (rewards / self.num_agents).squeeze(),
-                            "shaped_rewards": rewards.squeeze(),
-                        }
-                elif self.svo:
-                    original_rewards = rewards * self.num_agents
-                    rewards, theta = self.get_svo_rewards(
-                        original_rewards, self.svo_w, self.svo_ideal_angle_degrees, self.svo_target_agents
-                    )
-                    info = {
-                        "original_rewards": individual_rewards.squeeze(),
-                        "group_shared_rewards": (rewards / self.num_agents).squeeze(),
-                        "svo_theta": theta.squeeze(),
-                        "shaped_rewards": rewards.squeeze(),
-                    }
-                else:
-                    info = {
-                        "original_rewards": individual_rewards.squeeze(),
-                        "group_shared_rewards": rewards.squeeze(),
-                    }
+                info = {
+                    "original_rewards":      individual_rewards.squeeze(),
+                    "group_shared_rewards":  rewards.squeeze(),
+                }
 
             AppleCount = jnp.sum(state.grid == Items.apple)
             info["apple_count"] = jnp.zeros((self.num_agents, 1)).squeeze() + AppleCount
@@ -1737,7 +1725,8 @@ class Harvest_timeout(MultiAgentEnv):
                 grid=state.grid,
                 apples=state.apples,
                 freeze=state.freeze,
-                reborn_locs=state.reborn_locs
+                reborn_locs=state.reborn_locs,
+                smooth_rewards=state.smooth_rewards,
             )
 
             inner_t = state_nxt.inner_t
@@ -1822,7 +1811,8 @@ class Harvest_timeout(MultiAgentEnv):
                 apples=apple_pos,
 
                 freeze=freeze,
-                reborn_locs = agent_locs
+                reborn_locs = agent_locs,
+                smooth_rewards=jnp.zeros(num_agents, dtype=jnp.float32),
             )
 
         def reset(
@@ -1996,141 +1986,72 @@ class Harvest_timeout(MultiAgentEnv):
         """Optimized rendering using pre-cached tiles"""
         return self.renderer.render_grid(state, self._agents, self.get_obs_point)
 
-    def get_inequity_aversion_rewards_immediate(self, array, inner_t, target_agents=None, alpha=5, beta=0.05):
+    def _apply_ia(
+        self,
+        immediate: jnp.ndarray,      # r_i^t, shape (num_agents, 1) — base reward
+        smoothed: jnp.ndarray,        # e_i^t, shape (num_agents,)  — for comparison
+        im_alpha: float = 5.0,
+        im_beta: float = 0.05,
+        im_target_agents=None,
+        **_,                          # absorb unused cfg keys safely
+    ) -> Tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
         """
-        Calculate inequity aversion rewards using immediate rewards, based on equation (3) in the paper
-
-        Args:
-            array: shape: [num_agents, 1] immediate rewards r_i^t for each agent
-            target_agents: list of agent indices to apply inequity aversion
-            alpha: inequity aversion coefficient (when other agents' rewards are greater than self)
-            beta: inequity aversion coefficient (when self's rewards are greater than others)
-        Returns:
-            subjective_rewards: adjusted subjective rewards u_i^t after inequity aversion
+        Inequity Aversion per eq in the paper.
+        Comparison is done on smoothed rewards e_i^t.
+        Penalty is subtracted from immediate reward r_i^t.
         """
-        # Ensure correct input shape
-        assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
-
-        # Calculate inequality using immediate rewards
-        r_i = array  # [num_agents, 1]
-        r_j = jnp.transpose(array)  # [1, num_agents]
-
-        # Calculate inequality
-        disadvantageous = jnp.maximum(r_j - r_i, 0)  # when other agents' rewards are higher
-        advantageous = jnp.maximum(r_i - r_j, 0)     # when self's rewards are higher
-
-        # Create mask to exclude self-comparison
+        e_i = smoothed.reshape(-1, 1)        # (N, 1)
+        e_j = e_i.T                          # (1, N)
         mask = 1 - jnp.eye(self.num_agents)
-        disadvantageous = disadvantageous * mask
-        advantageous = advantageous * mask
 
-        # Calculate inequality penalty
+        disadvantageous = jnp.maximum(e_j - e_i, 0) * mask  # others better than self
+        advantageous    = jnp.maximum(e_i - e_j, 0) * mask  # self better than others
+
         n_others = self.num_agents - 1
-        inequity_penalty = (alpha * jnp.sum(disadvantageous, axis=1, keepdims=True) +
-                           beta * jnp.sum(advantageous, axis=1, keepdims=True)) / n_others
+        penalty = (
+            im_alpha * jnp.sum(disadvantageous, axis=1, keepdims=True) +
+            im_beta  * jnp.sum(advantageous,    axis=1, keepdims=True)
+        ) / n_others
 
-        # Calculate subjective rewards u_i^t = r_i^t - inequality penalty
-        subjective_rewards = array - inequity_penalty
+        shaped = immediate - penalty  # r_i^t - penalty(e_i^t)
 
-        subjective_rewards = jnp.where(jnp.all(array == 0), -(alpha + beta) * n_others, subjective_rewards)
-
-        # Apply inequity aversion only to target agents if specified
-        if target_agents is not None:
-            target_agents_array = jnp.array(target_agents)
+        if im_target_agents is not None:
             agent_mask = jnp.zeros(self.num_agents, dtype=bool)
-            agent_mask = agent_mask.at[target_agents_array].set(True)
-            agent_mask = agent_mask.reshape(-1, 1)  # [num_agents, 1]
-            return jnp.where(agent_mask, subjective_rewards, array),jnp.sum(disadvantageous, axis=1, keepdims=True),jnp.sum(advantageous, axis=1, keepdims=True)
-        else:
-            return subjective_rewards,jnp.sum(disadvantageous, axis=1, keepdims=True),jnp.sum(advantageous, axis=1, keepdims=True)
+            agent_mask = agent_mask.at[jnp.array(im_target_agents)].set(True)
+            shaped = jnp.where(agent_mask.reshape(-1, 1), shaped, immediate)
 
-    def get_svo_rewards(self, array, w=0.5, ideal_angle_degrees=45, target_agents=None):
+        return (
+            shaped,
+            jnp.sum(disadvantageous, axis=1, keepdims=True),
+            jnp.sum(advantageous,    axis=1, keepdims=True),
+        )
+
+    def _apply_svo(
+        self,
+        immediate: jnp.ndarray,       # r_i^t, shape (num_agents, 1)
+        smoothed: jnp.ndarray,         # e_i^t, shape (num_agents,)
+        im_w: float = 0.5,
+        im_ideal_angle_degrees: float = 45.0,
+        im_target_agents=None,
+        **_,
+    ) -> Tuple[jnp.ndarray, jnp.ndarray]:
         """
-        Reward shaping function based on Social Value Orientation (SVO)
-
-        Args:
-            array: shape: [num_agents, 1] immediate rewards r_i for each agent
-            w: SVO weight to balance self-reward and social value (0 <= w <= 1)
-               w=0 means completely selfish, w=1 means completely altruistic
-            ideal_angle_degrees: ideal angle in degrees
-               - 45 degrees means complete equality
-               - 0 degrees means completely selfish
-               - 90 degrees means completely altruistic
-            target_agents: list of agent indices to apply SVO
-
-        Returns:
-            shaped_rewards: rewards adjusted by SVO
-            theta: reward angle in radians
+        Social Value Orientation per eqs in the paper.
+        Angle is computed from smoothed rewards e_i^t.
+        Penalty is subtracted from immediate reward r_i^t.
         """
-        # Ensure correct input shape
-        assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
+        ideal_angle = (im_ideal_angle_degrees * jnp.pi) / 180.0
 
-        # Convert ideal angle from degrees to radians
-        ideal_angle = (ideal_angle_degrees * jnp.pi) / 180.0
-
-        # Calculate group average reward r_j (excluding self)
-        mask = 1 - jnp.eye(self.num_agents)  # [num_agents, num_agents]
-        # Modified: use matrix multiplication to calculate other agents' rewards
-        others_rewards = jnp.matmul(mask, array)  # [num_agents, 1]
-        mean_others = others_rewards / (self.num_agents - 1)  # divide by number of other agents
-
-        # Calculate reward angle θ(R) = arctan(r_j / r_i)
-        r_i = array  # [num_agents, 1]
-        r_j = mean_others  # [num_agents, 1]
-        theta = jnp.arctan2(r_j, r_i)
-
-        # Calculate social value oriented utility
-        # U(r_i, r_j) = r_i - w * |θ(R) - ideal_angle|
-        angle_deviation = jnp.abs(theta - ideal_angle)
-        svo_utility = r_i - self.num_agents * w * angle_deviation
-
-        # Apply SVO only to target agents if specified
-        if target_agents is not None:
-            target_agents_array = jnp.array(target_agents)
-            agent_mask = jnp.zeros(self.num_agents, dtype=bool)
-            agent_mask = agent_mask.at[target_agents_array].set(True)
-            agent_mask = agent_mask.reshape(-1, 1)  # [num_agents, 1]
-            return jnp.where(agent_mask, svo_utility, array), theta
-        else:
-            return svo_utility, theta
-
-    def get_standardized_svo_rewards(self, array, w=0.5, ideal_angle_degrees=45, target_agents=None):
-        """
-        Reward shaping function based on Social Value Orientation (SVO)
-        """
-        # Ensure correct input shape
-        assert array.shape == (self.num_agents, 1), f"Expected shape ({self.num_agents}, 1), got {array.shape}"
-
-        # Convert ideal angle from degrees to radians
-        ideal_angle = (ideal_angle_degrees * jnp.pi) / 180.0
-
-        # Calculate group average reward r_j (excluding self)
+        e_i = smoothed.reshape(-1, 1)                          # (N, 1)
         mask = 1 - jnp.eye(self.num_agents)
-        others_rewards = jnp.matmul(mask, array)
-        mean_others = others_rewards / (self.num_agents - 1)
+        e_minus_i = jnp.matmul(mask, e_i) / (self.num_agents - 1)  # mean of others
 
-        # Calculate reward angle θ(R) = arctan(r_j / r_i)
-        r_i = array
-        r_j = mean_others
-        theta = jnp.arctan2(r_j, r_i)
+        theta = jnp.arctan2(e_minus_i, e_i)                   # eq (3)
+        shaped = immediate - im_w * jnp.abs(ideal_angle - theta)  # eq (4)
 
-        # Convert angle to [0, 2π] range
-        theta = (theta + 2 * jnp.pi) % (2 * jnp.pi)
-
-        # Calculate angle deviation and normalize to [0, 1] range
-        angle_deviation = jnp.abs(theta - ideal_angle)
-        angle_deviation = jnp.minimum(angle_deviation, 2 * jnp.pi - angle_deviation)  # take minimum deviation
-        normalized_deviation = angle_deviation / jnp.pi  # normalize to [0, 1]
-
-        # Use multiplicative form of penalty instead of subtraction
-        svo_utility = r_i * (1 - w * normalized_deviation)
-
-        # Apply SVO only to target agents if specified
-        if target_agents is not None:
-            target_agents_array = jnp.array(target_agents)
+        if im_target_agents is not None:
             agent_mask = jnp.zeros(self.num_agents, dtype=bool)
-            agent_mask = agent_mask.at[target_agents_array].set(True)
-            agent_mask = agent_mask.reshape(-1, 1)
-            return jnp.where(agent_mask, svo_utility, array), theta
-        else:
-            return svo_utility, theta
+            agent_mask = agent_mask.at[jnp.array(im_target_agents)].set(True)
+            shaped = jnp.where(agent_mask.reshape(-1, 1), shaped, immediate)
+
+        return shaped, theta

@@ -357,7 +357,10 @@ def run_episode(
             # Print step info
             print(f"Rewards: {rewards}")
             if info:
-                print(f"Info: {info}")
+                print(f"Info keys: {list(info.keys())}")
+                for key in ["original_rewards", "final_rewards", "smooth_rewards", "shaped_rewards"]:
+                    if key in info:
+                        print(f"  {key}: {np.array(info[key])}")
 
             if not perform_consistency_checks(step + 1, state, env):
                 break
@@ -447,7 +450,7 @@ def main():
         "--env",
         type=str,
         required=True,
-        help="Environment name (e.g., 'harvest_common_open')"
+        help="Environment name (e.g., 'harvest_timeout')"
     )
     parser.add_argument(
         "--mode",
@@ -512,6 +515,57 @@ def main():
         default=None,
         help="reward multipliers"
     )
+    
+    parser.add_argument(
+        "--im_type",
+        type=str,
+        default=None,
+        choices=["ia", "svo"],
+        help="Intrinsic motivation type: 'ia' (inequity aversion) or 'svo' (social value orientation)"
+    )
+    parser.add_argument(
+        "--im_alpha",
+        type=float,
+        default=5.0,
+        help="IA: alpha (disadvantageous inequity weight)"
+    )
+    parser.add_argument(
+        "--im_beta",
+        type=float,
+        default=0.05,
+        help="IA: beta (advantageous inequity weight)"
+    )
+    parser.add_argument(
+        "--im_w",
+        type=float,
+        default=0.5,
+        help="SVO: w (penalty weight)"
+    )
+    parser.add_argument(
+        "--im_angle",
+        type=float,
+        default=45.0,
+        help="SVO: ideal angle in degrees"
+    )
+    parser.add_argument(
+        "--im_gamma",
+        type=float,
+        default=0.99,
+        help="IM: gamma for smooth reward decay"
+    )
+    parser.add_argument(
+        "--im_lambda",
+        type=float,
+        default=0.9,
+        help="IM: lambda for smooth reward decay"
+    )
+    parser.add_argument(
+        "--im_target_agents",
+        type=int,
+        nargs='+',
+        default=None,
+        help="IM: agent indices to apply IM to (default: all)"
+    )
 
     args = parser.parse_args()
 
@@ -527,6 +581,18 @@ def main():
         env_kwargs["group_assignments"] = args.group_assignments
     if args.reward_multipliers is not None:
         env_kwargs["reward_multipliers"] = args.reward_multipliers
+
+    if args.im_type is not None:
+        im_cfg = {"type": args.im_type, "gamma": args.im_gamma, "lam": args.im_lambda}
+        if args.im_type == "ia":
+            im_cfg["alpha"] = args.im_alpha
+            im_cfg["beta"] = args.im_beta
+        elif args.im_type == "svo":
+            im_cfg["w"] = args.im_w
+            im_cfg["ideal_angle_degrees"] = args.im_angle
+        if args.im_target_agents is not None:
+            im_cfg["target_agents"] = args.im_target_agents
+        env_kwargs["intrinsic_motivation"] = im_cfg
 
     # Run episode
     run_episode(

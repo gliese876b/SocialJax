@@ -136,7 +136,7 @@ def bootstrap_confidence_interval(dataset, confidence=0.95, iterations=10000, sa
     return lval, uval
 
 
-def get_algorithm_styles(algorithms: List[str], palette="Spectral") -> Dict[str, Dict[str, str]]:
+def get_algorithm_styles(algorithms: List[str], palette="hls") -> Dict[str, Dict[str, str]]:
     """Returns a mapping of colors, linestyles and legends for each algorithm"""
     color_map = {}
     linestyle_map = {}
@@ -245,11 +245,11 @@ def plot_single_task_curve(
         _, ax = plt.subplots(figsize=figsize)
     if algorithms is None:
         algorithms = list(aggregated_data.keys())
-    
+
     if colors is None:
         color_palette = sns.color_palette(color_palette, n_colors=len(algorithms))
         colors = dict(zip(algorithms, color_palette))
-        
+
     if linestyles is None:
         linestyles = {algorithm: "solid" for algorithm in algorithms}
 

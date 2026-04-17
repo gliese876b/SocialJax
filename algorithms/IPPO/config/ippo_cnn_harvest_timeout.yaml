@@ -9,17 +9,18 @@
 "CLIP_EPS": 0.2
 "ENT_COEF": 0.05
 "VF_COEF": 0.5
-"MAX_GRAD_NORM": 5.0
+"MAX_GRAD_NORM": 50.0
 "ACTIVATION": "relu"
 "ENV_NAME": "harvest_timeout"
 "ENV_KWARGS":
   "num_agents" : 10
   "num_inner_steps" : 1000
-  "shared_rewards" : False  # Attention: switch to False for individual rewards; True for common rewards
+  "shared_rewards" : False  # Attention: switch to False for individual rewards; True for distributed rewards within a group
   "cnn" : True
-  "reward_multipliers": [0.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5]
+  "default_reward": -0.01
+  "reward_multipliers": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
   "jit" : True
-
+  "intrinsic_motivation": null
 
 "ANNEAL_LR": True
 "SEED": 0

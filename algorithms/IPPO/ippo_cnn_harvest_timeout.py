@@ -2,7 +2,6 @@
 Based on PureJaxRL & jaxmarl Implementation of PPO
 """
 import sys
-sys.path.append('/home/shuqing/SocialJax')
 import jax
 import jax.numpy as jnp
 import flax.linen as nn
@@ -29,6 +28,23 @@ import json
 from datetime import datetime
 
 import imageio
+
+
+def get_algo_name(config):
+    base = "ippo"
+    im = config.get("ENV_KWARGS", {}).get("intrinsic_motivation")
+    if not im or not im.get("im_type"):
+        return base
+    im_type = im["im_type"]
+    if im_type == "svo":
+        w = im.get("im_w", "")
+        angle = int(im.get("im_ideal_angle_degrees", 0))
+        return f"{base}_svo_w{w}_a{angle}"
+    if im_type == "ia":
+        alpha = im.get("im_alpha", "")
+        beta = im.get("im_beta", "")
+        return f"{base}_ia_a{alpha}_b{beta}"
+    return f"{base}_{im_type}"
 
 class CNN(nn.Module):
     activation: str = "relu"
@@ -129,6 +145,7 @@ def unbatchify(x: jnp.ndarray, agent_list, num_envs, num_actors):
 
 def make_train(config):
     env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
+
     if config["PARAMETER_SHARING"]:
         config["NUM_ACTORS"] = env.num_agents * config["NUM_ENVS"]
     else:
@@ -361,7 +378,7 @@ def make_train(config):
 
                         # CALCULATE ACTOR LOSS
                         ratio = jnp.exp(log_prob - traj_batch.log_prob)
-                        gae = (gae - gae.mean()) / (gae.std() + 1e-8)
+                        # gae = (gae - gae.mean()) / (gae.std() + 1e-8) # REMOVED TO OBSERVE THE IMPACT OF DIFFERENT REWARD SCALES
                         loss_actor1 = ratio * gae
                         loss_actor2 = (
                             jnp.clip(
@@ -450,16 +467,40 @@ def make_train(config):
                 wandb.log(metric)
 
             def eval_callback(step, params):
+                import subprocess, pickle, tempfile, json
+                import numpy as np
 
-                jax.clear_caches()
-
-                # --- UI & COMPUTATION ---
                 print(f"\n{'='*60}\nRunning evaluation at step {step}...\n{'='*60}")
-                eval_seed = config["SEED"] + int(step) + 999999
-                eval_results = run_evaluation_episodes(params, config, eval_seed, num_episodes=config["EVAL_EPISODES"])
-                
+
+                # Write params and config to temp files
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
+                    pickle.dump(params, f)
+                    params_path = f.name
+
+                eval_config = {**config, "_eval_seed": config["SEED"] + int(step) + 999999}
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.json', mode='w') as f:
+                    json.dump(eval_config, f)
+                    config_path = f.name
+
+                result_path = params_path + '_result.json'
+
+                # Run eval in completely separate process with its own CUDA context
+                env = {**os.environ, 'LD_PRELOAD': os.environ.get('LD_PRELOAD', '')}
+                subprocess.run([
+                    sys.executable,
+                    'algorithms/IPPO/eval_worker.py',
+                    params_path, config_path, result_path
+                ], check=True, env=env)
+
+                with open(result_path, 'r') as f:
+                    eval_results = json.load(f)
+
+                os.unlink(params_path)
+                os.unlink(config_path)
+                os.unlink(result_path)
+
                 summary_data = eval_results["summary"]
-                raw_data = eval_results["raw"]
+                raw_data = {k: np.array(v) for k, v in eval_results["raw"].items()}
 
                 # Print summary to console
                 for key, values in summary_data.items():
@@ -472,17 +513,18 @@ def make_train(config):
                 output_dir = f"{config['RUN_OUTPUT_DIR']}/evaluation"
                 os.makedirs(output_dir, exist_ok=True)
                 env_name = config["ENV_NAME"]
+                algo_name = get_algo_name(config)
                 seed_name = f"seed_{config['SEED']}"
 
                 # --- PART A: UPDATE GENERAL JSON (Standard Structure) ---
                 json_path = os.path.join(output_dir, f"{env_name}_ippo_seed_{config['SEED']}.json")
-                
+
                 if os.path.exists(json_path):
                     with open(json_path, 'r') as f: main_data = json.load(f)
                 else:
-                    main_data = {"socialjax": {env_name: {"ippo": {seed_name: {}}}}}
+                    main_data = {"socialjax": {env_name: {algo_name: {seed_name: {}}}}}
 
-                seed_results = main_data["socialjax"][env_name]["ippo"][seed_name]
+                seed_results = main_data["socialjax"][env_name][algo_name][seed_name]
                 step_key = f"step_{len([k for k in seed_results.keys() if k.startswith('step_')])}"
                 seed_results[step_key] = {"step_count": int(step), **summary_data}
                 seed_results["absolute_metrics"] = {k: [float(np.mean(v))] for k, v in summary_data.items()}
@@ -490,7 +532,7 @@ def make_train(config):
                 with open(json_path, 'w') as f: json.dump(main_data, f, indent=2)
 
                 # --- PART B: UPDATE AGENT JSONs (Expanded Action Metrics) ---
-                for agent_idx in range(env.num_agents):
+                for agent_idx in range(config["ENV_KWARGS"]["num_agents"]):
                     agent_algo_name = f"ippo (agent {agent_idx})"
                     agent_path = os.path.join(output_dir, f"{env_name}_ippo_agent_{agent_idx}_seed_{config['SEED']}.json")
 
@@ -520,7 +562,7 @@ def make_train(config):
 
                     a_seed_results = agent_data["socialjax"][env_name][agent_algo_name][seed_name]
                     a_step_key = f"step_{len([k for k in a_seed_results.keys() if k.startswith('step_')])}"
-                    
+
                     # Store in identical format
                     a_seed_results[a_step_key] = {"step_count": int(step), **agent_metrics}
                     a_seed_results["absolute_metrics"] = {k: [float(np.mean(v))] for k, v in agent_metrics.items()}
@@ -536,8 +578,6 @@ def make_train(config):
                     evaluate(params, video_env, output_dir, config, save_video=True, step=step)
                 else:
                     print(f"\nSkipping video generation for step {step} (Only saved at final step).")
-                
-                jax.clear_caches()
 
             update_step = update_step + 1
             metric = jax.tree_util.tree_map(lambda x: x.mean(), metric)
@@ -599,7 +639,7 @@ def build_marl_eval_json(config, all_eval_results):
         dict: MARL-eval formatted results
     """
     env_name = config["ENV_NAME"]
-    algo_name = "ippo"  # or config.get("ALGO_NAME", "ippo")
+    algo_name = get_algo_name(config)
     seed_name = f"seed_{config['SEED']}"
 
     # Initialize structure
@@ -638,11 +678,11 @@ def build_marl_eval_json(config, all_eval_results):
 
 def single_run(config):
     config = OmegaConf.to_container(config)
-
+    algo_name = get_algo_name(config)
     run = wandb.init(
         entity=config["ENTITY"],
         project=config["PROJECT"],
-        tags=["IPPO", "FF"],
+        tags=[algo_name, "FF"],
         config=config,
         mode=config["WANDB_MODE"],
         name=f'ippo_cnn_harvest_common_seed{config["SEED"]}'
@@ -654,6 +694,8 @@ def single_run(config):
     rngs = jax.random.split(rng, config["NUM_SEEDS"])
     train_jit = jax.jit(make_train(config))
     out = jax.vmap(train_jit)(rngs)
+
+    jax.clear_caches()
 
     print("\n** Saving Results **")
     filename = f'{config["ENV_NAME"]}_seed{config["SEED"]}'
@@ -673,7 +715,6 @@ def single_run(config):
 
     evaluate(params, socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"]), f"{config['RUN_OUTPUT_DIR']}/evaluation", config)
 
-    # MARL-eval JSON was already created and updated during training!
     json_filename = f"{config['ENV_NAME']}_ippo_seed{config['SEED']}.json"
     json_path = os.path.join(f"{config['RUN_OUTPUT_DIR']}/evaluation", json_filename)
 
@@ -685,8 +726,9 @@ def single_run(config):
             data = json.load(f)
 
         env_name = config["ENV_NAME"]
+        algo_name = get_algo_name(config)
         seed_name = f"seed_{config['SEED']}"
-        seed_results = data[env_name][f"{env_name}"]["ippo"][seed_name]
+        seed_results = data[env_name][f"{env_name}"][algo_name][seed_name]
 
         num_checkpoints = len([k for k in seed_results.keys() if k.startswith("step_")])
 
@@ -744,9 +786,9 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         positive_reward_counts = jnp.zeros(eval_env.num_agents)
 
         total_freeze_steps = jnp.zeros(eval_env.num_agents)
-        
+
         num_actions = eval_env.action_space().n # Get dynamically
-        
+
         # Trackers
         action_counts = jnp.zeros((eval_env.num_agents, num_actions))
         apple_counts = jnp.zeros(eval_env.num_agents)
@@ -798,10 +840,10 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
 
             # Accumulate the total steps spent frozen (only if episode is not done)
             new_total_freeze_steps = current_total_freeze_steps + is_frozen * (1 - done_flag)
-            
+
             action_updates = jax.nn.one_hot(info["actions_taken"], num_actions)
             new_actions = current_actions + action_updates * (1 - done_flag) * (1 - is_frozen[:, None]) # count actions only when the agent is alive
-            
+
             new_apples = current_apples + info["apples_collected"] * (1 - done_flag)
 
             steps_taken = steps_taken + (1 - done_flag)
@@ -882,7 +924,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
     # 2. Raw dictionary for the AGENT-SPECIFIC JSONs
     raw_data = {
         "returns": all_episode_rewards,           # Shape: (episodes, agents)
-        "actions": all_actions,                   # Shape: (episodes, agents, action_dim) 
+        "actions": all_actions,                   # Shape: (episodes, agents, action_dim)
         "apples": all_apples,                     # Shape: (episodes, agents)
         "freeze_steps": all_freeze_steps,         # Shape: (episodes, agents)
         "pos_reward_timesteps": all_positive_reward_timesteps # Shape: (episodes, agents)
@@ -1017,11 +1059,11 @@ def tune(default_config):
         config = copy.deepcopy(default_config)
         # only overwrite the single nested key we're sweeping
         for k, v in dict(wandb.config).items():
-            if "." in k:
-                parent, child = k.split(".", 1)
-                config[parent][child] = v
-            else:
-                config[k] = v
+            keys = k.split(".")
+            d = config
+            for key in keys[:-1]:
+                d = d[key]
+            d[keys[-1]] = v
 
 
         # Rename the run for clarity

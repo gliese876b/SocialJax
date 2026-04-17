@@ -1,0 +1,9 @@
+# 1. requirements (no-deps to avoid numpy upgrades)
+pip install -r requirements.txt --no-user --no-deps
+# 2. Fix jax/jaxlib explicitly
+pip install "jax==0.4.23" "jaxlib==0.4.23+cuda11.cudnn86" \
+  -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html \
+  --no-user --no-deps --force-reinstall
+# 3. Fix numpy/scipy/ml_dtypes
+pip install "numpy==1.26.4" "scipy==1.12.0" "ml_dtypes==0.4.0" \
+  --no-user --no-deps --force-reinstall
