@@ -44,6 +44,9 @@ def get_algo_name(config):
         alpha = im.get("im_alpha", "")
         beta = im.get("im_beta", "")
         return f"{base}_ia_a{alpha}_b{beta}"
+    if im_type == "social_conformity":
+        w = im.get("im_w", 1.0)
+        return f"{base}_conformity_w{w}"
     return f"{base}_{im_type}"
 
 class CNN(nn.Module):
@@ -142,6 +145,73 @@ def unbatchify(x: jnp.ndarray, agent_list, num_envs, num_actors):
     x = x.reshape((num_actors, num_envs, -1))
     return {a: x[i] for i, a in enumerate(agent_list)}
 
+
+def get_single_agent_reward(agent_obs, agent_action, agent_idx, all_params_stacked, network, num_agents, weight, is_critical):
+    """
+    TEST VERSION: punishes the agent for taking action 2 (move_forward) while
+    in a critical state (is_critical=True, i.e. standing in front of an
+    endangered apple with too few neighbors), regardless of group consensus.
+
+    Used to sanity-check that is_critical flows correctly env -> info ->
+    here, and that the penalty actually reaches PPO's training reward,
+    before re-enabling the full cross-policy consensus logic below.
+
+    agent_obs, all_params_stacked, network, num_agents are unused here but
+    kept in the signature so the vmap call sites (training _env_step and
+    the eval loop) don't need to change.
+    """
+    def perform_penalty(_):
+        return -1.0 * weight * (agent_action == 2).astype(jnp.float32)
+
+    return jax.lax.cond(is_critical, perform_penalty, lambda _: 0.0, operand=None)
+
+"""
+def get_single_agent_reward(agent_obs, agent_action, agent_idx, all_params_stacked, network, num_agents, weight, is_critical):
+    # Calculates reward for ONE agent in ONE environment.
+
+    # is_critical is supplied by the caller — read from info["is_critical"]
+    # returned by the env, so criticality logic lives only in the env.
+    
+    def perform_cross_check(_):
+        # FIX: Ensure agent_obs has a batch dimension for the CNN's reshape layer
+        obs_batched = jnp.expand_dims(agent_obs, axis=0)
+
+        # Cross-policy check: What do all agents think of this view?
+        # all_pi.probs will have shape [num_agents, 1, action_dim]
+        all_pi, _ = jax.vmap(network.apply, in_axes=(0, None))(all_params_stacked, obs_batched)
+
+        # Remove the dummy batch dimension to get [num_agents, action_dim]
+        probs = all_pi.probs.squeeze(axis=1)
+
+        # Calculate group norm (excluding the acting agent)
+        mask = jnp.arange(num_agents) != agent_idx
+        group_avg_probs = jnp.mean(probs, axis=0, where=mask[:, None])
+
+        norm_action = jnp.argmax(group_avg_probs)
+        consensus = jnp.max(group_avg_probs)
+
+        is_deviating = (agent_action != norm_action)
+        
+        # --- DEBUGGING BLOCK ---
+        # Only print for Environment 0, Agent 0 to avoid a wall of text
+        # We use a combined check to target a single "instance"
+        # should_print = (agent_idx == 0)
+
+        # jax.lax.cond(
+        #     should_print,
+        #     lambda _: jax.debug.print(
+        #         "Agent {i} | Action: {a} | Norm: {n} | Dev: {d} | Cons: {c} | Probs: {p}",
+        #         i=agent_idx, a=agent_action, n=norm_action, d=is_deviating, c=consensus, p=group_avg_probs
+        #     ),
+        #     lambda _: None,
+        #     operand=None
+        # )
+        # -----------------------
+        
+        return -1.0 * weight * (is_deviating.astype(jnp.float32)) * consensus
+
+    return jax.lax.cond(is_critical, perform_cross_check, lambda _: 0.0, operand=None)
+"""
 
 def make_train(config):
     env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
@@ -269,6 +339,48 @@ def make_train(config):
                     # If it's a 1D vector (like freeze status, apple count), reshape it to (N, 1)
                     # This is safe and mathematically valid.
                     return x.reshape((config["NUM_ACTORS"]), 1)
+
+                im_cfg = config.get("ENV_KWARGS", {}).get("intrinsic_motivation", {})
+                # FIXME: add the IM also in the evaluation loops, otherwise, it cannot be observed in the curves
+                if im_cfg and im_cfg.get("im_type") == "social_conformity" and not config["PARAMETER_SHARING"]:
+                    w = im_cfg.get("im_w", 1.0)
+                    num_agents = env.num_agents
+                    num_envs = config["NUM_ENVS"]
+
+                    obs_t = last_obs
+                    act_t = jnp.array(env_act).T
+                    # index map [32, 10]
+                    idx_t = jnp.broadcast_to(jnp.arange(num_agents), (num_envs, num_agents))
+
+                    # 2. Flatten everything to a single batch of 320
+                    obs_flat = obs_t.reshape(-1, 11, 11, 11)
+                    act_flat = act_t.reshape(-1)
+                    idx_flat = idx_t.reshape(-1)
+
+                    is_critical_flat = info["is_critical"].reshape(-1)
+
+                    # 3. Stack parameters for the vmap
+                    params_list = [train_state[i].params for i in range(num_agents)]
+                    all_params_stacked = jax.tree_util.tree_map(lambda *args: jnp.stack(args), *params_list)
+
+                    # 4. Map over the 320 instances
+                    intrinsic_rewards_flat = jax.vmap(
+                        get_single_agent_reward,
+                        in_axes=(0, 0, 0, None, None, None, None, 0)
+                    )(
+                        obs_flat,
+                        act_flat,
+                        idx_flat,
+                        all_params_stacked,
+                        network[0],
+                        num_agents,
+                        w,
+                        is_critical_flat,
+                    )
+
+                    # 5. Reshape back to [32, 10] to add to environment reward
+                    intrinsic_rewards = intrinsic_rewards_flat.reshape(num_envs, num_agents)
+                    reward = reward + intrinsic_rewards
 
                 if config["PARAMETER_SHARING"]:
                     info = jax.tree_util.tree_map(lambda x: x.reshape((config["NUM_ACTORS"])), info)

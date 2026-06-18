@@ -358,7 +358,7 @@ def run_episode(
             print(f"Rewards: {rewards}")
             if info:
                 print(f"Info keys: {list(info.keys())}")
-                for key in ["original_rewards", "final_rewards", "smooth_rewards", "shaped_rewards"]:
+                for key in ["original_rewards", "final_rewards", "smooth_rewards", "shaped_rewards", "is_critical"]:
                     if key in info:
                         print(f"  {key}: {np.array(info[key])}")
 
@@ -515,13 +515,13 @@ def main():
         default=None,
         help="reward multipliers"
     )
-    
+
     parser.add_argument(
         "--im_type",
         type=str,
         default=None,
-        choices=["ia", "svo"],
-        help="Intrinsic motivation type: 'ia' (inequity aversion) or 'svo' (social value orientation)"
+        choices=["ia", "svo", "social_conformity"],
+        help="Intrinsic motivation type: 'ia' (inequity aversion), 'svo' (social value orientation) or 'social_conformity'"
     )
     parser.add_argument(
         "--im_alpha",
@@ -583,15 +583,15 @@ def main():
         env_kwargs["reward_multipliers"] = args.reward_multipliers
 
     if args.im_type is not None:
-        im_cfg = {"type": args.im_type, "gamma": args.im_gamma, "lam": args.im_lambda}
+        im_cfg = {"im_type": args.im_type, "im_gamma": args.im_gamma, "im_lam": args.im_lambda}
         if args.im_type == "ia":
-            im_cfg["alpha"] = args.im_alpha
-            im_cfg["beta"] = args.im_beta
+            im_cfg["im_alpha"] = args.im_alpha
+            im_cfg["im_beta"] = args.im_beta
         elif args.im_type == "svo":
-            im_cfg["w"] = args.im_w
-            im_cfg["ideal_angle_degrees"] = args.im_angle
+            im_cfg["im_w"] = args.im_w
+            im_cfg["im_ideal_angle_degrees"] = args.im_angle
         if args.im_target_agents is not None:
-            im_cfg["target_agents"] = args.im_target_agents
+            im_cfg["im_target_agents"] = args.im_target_agents
         env_kwargs["intrinsic_motivation"] = im_cfg
 
     # Run episode

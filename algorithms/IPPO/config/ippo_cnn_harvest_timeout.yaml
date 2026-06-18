@@ -17,10 +17,12 @@
   "num_inner_steps" : 1000
   "shared_rewards" : False  # Attention: switch to False for individual rewards; True for distributed rewards within a group
   "cnn" : True
-  "default_reward": -0.01
+  "default_reward": 0.0
   "reward_multipliers": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
   "jit" : True
-  "intrinsic_motivation": null
+  "intrinsic_motivation":
+    "im_type": "social_conformity"
+    "im_w": 1.0
 
 "ANNEAL_LR": True
 "SEED": 0

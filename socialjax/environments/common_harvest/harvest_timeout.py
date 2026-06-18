@@ -469,7 +469,7 @@ class OptimizedRenderer:
 
 class Harvest_timeout(MultiAgentEnv):
     """
-    JAX Compatible n-agent version of *inTheMatix environment.
+    JAX Compatible n-agent version of Harvest environment.
     """
 
     # used for caching
@@ -534,14 +534,13 @@ class Harvest_timeout(MultiAgentEnv):
             assert "im_type" in intrinsic_motivation, \
                 "intrinsic_motivation dict must have a 'type' key"
             self.im_type = intrinsic_motivation["im_type"]
-            assert self.im_type in ("ia", "svo"), \
-                f"Unknown intrinsic_motivation type: '{self.im_type}'. Must be 'ia' or 'svo'."
+            assert self.im_type in ("ia", "svo", "social_conformity"), \
+                f"Unknown intrinsic_motivation type: '{self.im_type}'. Must be 'ia' or 'svo' or 'social_conformity'."
             self.im_cfg = {k: v for k, v in intrinsic_motivation.items() if k != "im_type"}
 
         # Pull out gamma/lambda for smooth reward update (shared by both IA and SVO)
         self.im_gamma  = self.im_cfg.get("im_gamma",  0.99)
         self.im_lambda = self.im_cfg.get("im_lambda", 0.9)
-
 
         # Generate colors based on grouping
         if group_assignments is None:
@@ -1339,6 +1338,42 @@ class Harvest_timeout(MultiAgentEnv):
 
             return state
 
+        # ── Critical-state detector ──────────────────────────────────────────────
+        # Defined here (inside __init__) so it closes over OBS_SIZE and Items,
+        # and can be re-used inside _step and exposed as self.is_obs_critical.
+        # Channel layout (from combine_channels):
+        #   0-4  : Items one-hot  (3 = apple)
+        #   5    : self agent
+        #   6    : other agents
+        #   7-10 : relative orientations
+        def _is_obs_critical(obs: jnp.ndarray) -> jnp.ndarray:
+            """
+            Returns True if a single agent observation represents a critical state.
+            obs shape: (OBS_SIZE, OBS_SIZE, 11)
+            The agent always faces 'up'; center is (OBS_SIZE//2, OBS_SIZE//2).
+            """
+            apple_map = obs[:, :, 3]   # 1 where apple present, else 0
+
+            # Endangered apple: apple one step ahead with < 2 apple neighbours
+            fwd_r = self.OBS_SIZE // 2 - 1   # one row above centre
+            fwd_c = self.OBS_SIZE // 2        # centre column
+            has_apple   = (apple_map[fwd_r, fwd_c] == 1)
+            nb_sum      = (apple_map[fwd_r - 1, fwd_c] +
+                           apple_map[fwd_r + 1, fwd_c] +
+                           apple_map[fwd_r, fwd_c - 1] +
+                           apple_map[fwd_r, fwd_c + 1] +
+                           apple_map[fwd_r - 2, fwd_c] +
+                           apple_map[fwd_r + 2, fwd_c] +
+                           apple_map[fwd_r, fwd_c - 2] +
+                           apple_map[fwd_r, fwd_c + 2] +
+                           apple_map[fwd_r - 1, fwd_c - 1] +
+                           apple_map[fwd_r - 1, fwd_c + 1] +
+                           apple_map[fwd_r + 1, fwd_c - 1] +
+                           apple_map[fwd_r + 1, fwd_c + 1])
+            is_endangered = has_apple & (nb_sum < 1)
+
+            return is_endangered
+
         def _step(
             key: chex.PRNGKey,
             state: State,
@@ -1346,6 +1381,12 @@ class Harvest_timeout(MultiAgentEnv):
         ):
             """Step the environment."""
             actions = jnp.array(actions)
+
+            if self.im_type == "social_conformity":
+                _pre_obs  = _get_obs(state)                         # [A, H, W, C]
+                is_critical = jax.vmap(_is_obs_critical)(_pre_obs)  # [A]  bool
+            else:
+                is_critical = jnp.zeros(num_agents, dtype=jnp.bool_)
 
             # --- SETUP ---
             locs_at_start = state.agent_locs # Capture starting locations for cleanup
@@ -1716,6 +1757,7 @@ class Harvest_timeout(MultiAgentEnv):
             info["agent_freeze"] = state.freeze
             info["apples_collected"] = apple_matches.squeeze().astype(jnp.int32)
             info["actions_taken"] = actions.squeeze() # shape: (num_agents,)
+            info["is_critical"] = is_critical
 
             state_nxt = State(
                 agent_locs=state.agent_locs,
