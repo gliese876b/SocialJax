@@ -341,7 +341,6 @@ def make_train(config):
                     return x.reshape((config["NUM_ACTORS"]), 1)
 
                 im_cfg = config.get("ENV_KWARGS", {}).get("intrinsic_motivation", {})
-                # FIXME: add the IM also in the evaluation loops, otherwise, it cannot be observed in the curves
                 if im_cfg and im_cfg.get("im_type") == "social_conformity" and not config["PARAMETER_SHARING"]:
                     w = im_cfg.get("im_w", 1.0)
                     num_agents = env.num_agents
@@ -659,6 +658,9 @@ def make_train(config):
                         "apples_collected": raw_data["apples"][:, agent_idx].tolist(),
                         "frozen_steps": raw_data["freeze_steps"][:, agent_idx].tolist(),
                         "sustainability": raw_data["pos_reward_timesteps"][:, agent_idx].tolist(),
+                        # Intrinsic motivation tracing (zero when social_conformity not active)
+                        "original_rewards": raw_data["original_rewards"][:, agent_idx].tolist(),
+                        "shaped_rewards": raw_data["shaped_rewards"][:, agent_idx].tolist(),
                     }
 
                     # raw_data["actions"] shape: (num_episodes, num_agents, num_actions)
@@ -872,43 +874,70 @@ def load_params(load_path):
 def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
     """
     Run multiple evaluation episodes in parallel using JAX vmap.
-
+ 
     Returns:
         dict: {"player_0_return": [...], "player_1_return": [...], "return": [...]}
     """
     # Create eval environment
     eval_env = socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"])
-
+ 
     if config["PARAMETER_SHARING"]:
         network = ActorCritic(eval_env.action_space().n, activation=config["ACTIVATION"])
     else:
         network = [ActorCritic(eval_env.action_space().n, activation=config["ACTIVATION"])
                    for _ in range(eval_env.num_agents)]
-
+ 
+    # --- General original / shaped reward tracing for eval ---
+    # The env always returns info["original_rewards"] (pre-shaping, raw env
+    # reward) and either info["shaped_rewards"] (when an im_type is set:
+    # "ia", "svo", or "social_conformity") or info["group_shared_rewards"]
+    # (when no im_type is set). For "ia"/"svo"/None, the env has ALREADY
+    # applied the shaping, so info[shaped_key] is the final answer. Only
+    # "social_conformity" is shaped OUTSIDE the env (at the algo level via
+    # get_single_agent_reward), so we add that on top in that case only.
+    im_cfg = config.get("ENV_KWARGS", {}).get("intrinsic_motivation", {})
+    im_type = im_cfg.get("im_type")  # None, "ia", "svo", or "social_conformity"
+    shaped_key = "shaped_rewards" if im_type is not None else "group_shared_rewards"
+ 
+    track_conformity = (
+        im_type == "social_conformity"
+        and not config["PARAMETER_SHARING"]
+    )
+    if track_conformity:
+        _conf_w = im_cfg.get("im_w", 1.0)
+        all_params_stacked = jax.tree_util.tree_map(
+            lambda *args: jnp.stack(args), *params
+        )
+ 
     def run_single_episode(rng):
         """Run a single episode and return cumulative rewards per agent"""
         rng, _rng = jax.random.split(rng)
         obs, state = eval_env.reset(_rng)
-
+ 
         # Initialize episode rewards
         episode_rewards = jnp.zeros(eval_env.num_agents)
-
+ 
         # For sustainability: track timesteps where each agent got positive reward
         positive_reward_timesteps_sum = jnp.zeros(eval_env.num_agents)
         positive_reward_counts = jnp.zeros(eval_env.num_agents)
-
+ 
         total_freeze_steps = jnp.zeros(eval_env.num_agents)
-
+ 
         num_actions = eval_env.action_space().n # Get dynamically
-
+ 
         # Trackers
         action_counts = jnp.zeros((eval_env.num_agents, num_actions))
         apple_counts = jnp.zeros(eval_env.num_agents)
-
+        # General reward-shaping tracers — always populated regardless of im_type
+        original_rewards_sum = jnp.zeros(eval_env.num_agents)
+        shaped_rewards_sum   = jnp.zeros(eval_env.num_agents)
+ 
         def episode_step(carry, t):
             """Single step in the episode"""
-            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, current_total_freeze_steps, steps_taken, current_actions, current_apples, rng, done) = carry
-
+            (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts,
+             current_total_freeze_steps, steps_taken, current_actions, current_apples,
+             current_original_rewards_sum, current_shaped_rewards_sum, rng, done) = carry
+ 
             # Select actions
             if config["PARAMETER_SHARING"]:
                 # obs is dict with shape per agent: (H, W, C)
@@ -931,51 +960,85 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
                     rng, _rng = jax.random.split(rng)
                     action = pi.sample(seed=_rng)
                     env_act.append(action.squeeze())
-
+ 
             # Step environment
             rng, _rng = jax.random.split(rng)
             obs, state, reward, done_dict, info = eval_env.step(_rng, state, env_act)
-
+ 
             # Accumulate rewards (only if not done)
             done_flag = done_dict["__all__"]
             episode_rewards = episode_rewards + reward * (1 - done_flag)
-
+ 
             # Track positive rewards for sustainability
             # For each agent, if reward > 0, accumulate the timestep
             has_positive_reward = (reward > 0).astype(jnp.float32)
             pos_reward_sum = pos_reward_sum + t * has_positive_reward * (1 - done_flag)
             pos_reward_counts = pos_reward_counts + has_positive_reward * (1 - done_flag)
-
+ 
             # info["agent_freeze"] is the counter for each agent
             freeze_counter = info["agent_freeze"].squeeze()
             is_frozen = (freeze_counter > 0).astype(jnp.float32)
-
+ 
             # Accumulate the total steps spent frozen (only if episode is not done)
             new_total_freeze_steps = current_total_freeze_steps + is_frozen * (1 - done_flag)
-
+ 
             action_updates = jax.nn.one_hot(info["actions_taken"], num_actions)
             new_actions = current_actions + action_updates * (1 - done_flag) * (1 - is_frozen[:, None]) # count actions only when the agent is alive
-
+ 
             new_apples = current_apples + info["apples_collected"] * (1 - done_flag)
-
+ 
             steps_taken = steps_taken + (1 - done_flag)
-
-            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts, new_total_freeze_steps, steps_taken, new_actions, new_apples, rng, done_flag), None
-
+ 
+            # --- Original / shaped reward tracing (general across im_type) ---
+            # info["original_rewards"] and info[shaped_key] are always populated
+            # by the env. For "ia"/"svo"/None they already reflect the final,
+            # fully-shaped reward. For "social_conformity" the env leaves
+            # rewards unshaped, so the algo-level penalty is added here.
+            original_step = info["original_rewards"]
+            shaped_step   = info[shaped_key]
+ 
+            if track_conformity:
+                # info["is_critical"] is set by the env from the pre-transition
+                # obs (i.e. the obs agents used when choosing env_act this step).
+                agent_indices = jnp.arange(eval_env.num_agents, dtype=jnp.int32)
+                intrinsic_step = jax.vmap(
+                    get_single_agent_reward,
+                    in_axes=(0, 0, 0, None, None, None, None, 0)
+                )(
+                    obs_batch,
+                    jnp.array(env_act, dtype=jnp.int32),
+                    agent_indices,
+                    all_params_stacked,
+                    network[0],
+                    eval_env.num_agents,
+                    _conf_w,
+                    info["is_critical"],
+                )
+                shaped_step = shaped_step + intrinsic_step
+ 
+            new_original_rewards_sum = current_original_rewards_sum + original_step * (1 - done_flag)
+            new_shaped_rewards_sum   = current_shaped_rewards_sum   + shaped_step   * (1 - done_flag)
+ 
+            return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts,
+                    new_total_freeze_steps, steps_taken, new_actions, new_apples,
+                    new_original_rewards_sum, new_shaped_rewards_sum, rng, done_flag), None
+ 
         # Run episode for max steps
         max_steps = config["ENV_KWARGS"].get("num_inner_steps", 1000)
         (_, _, final_rewards, final_pos_sum, final_pos_counts,
-         final_freeze_steps, final_steps, final_actions, final_apples, _, _), _ = jax.lax.scan(
+         final_freeze_steps, final_steps, final_actions, final_apples,
+         final_original_rewards_sum, final_shaped_rewards_sum, _, _), _ = jax.lax.scan(
             episode_step,
             (obs, state, episode_rewards, positive_reward_timesteps_sum,
-             positive_reward_counts, total_freeze_steps, 0.0, action_counts, apple_counts, rng, False),
+             positive_reward_counts, total_freeze_steps, 0.0, action_counts, apple_counts,
+             original_rewards_sum, shaped_rewards_sum, rng, False),
             jnp.arange(max_steps),
             length=max_steps
         )
-
+ 
         N = eval_env.num_agents
         T = jnp.maximum(final_steps, 1.0)
-
+ 
         # === SUSTAINABILITY METRIC ===
         # S = (1/N) * sum_i E[t | r_i^t > 0]
         # E[t | r_i^t > 0] = sum of timesteps with positive reward / count of positive rewards
@@ -985,46 +1048,48 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
             0.0  # If agent never got positive reward, contribute 0
         )
         sustainability = jnp.mean(avg_positive_reward_timesteps)
-
+ 
         # === EQUALITY METRIC ===
         # E = 1 - sum_i sum_j |G_i - G_j| / (2N * sum_i G_i)
         # G_i = total reward for agent i (which is final_rewards[i])
         G = final_rewards  # Shape: (num_agents,)
-
+ 
         # Compute pairwise differences: |G_i - G_j| for all i,j
         # Broadcasting: G[:, None] - G[None, :] gives matrix of differences
         pairwise_diffs = jnp.abs(G[:, None] - G[None, :])  # Shape: (N, N)
         sum_abs_diffs = jnp.sum(pairwise_diffs)
-
+ 
         total_rewards = jnp.sum(G)
-
+ 
         # Avoid division by zero
         equality = jnp.where(
             total_rewards > 0,
             1.0 - (sum_abs_diffs / (2.0 * N * total_rewards)),
             1.0  # If no one got any reward, consider it perfectly equal
         )
-
+ 
         # === PEACE METRIC CALCULATION ===
         # P = N - (1/T) * sum_i (total_freeze_steps_i)
         sum_freeze_steps = jnp.sum(final_freeze_steps)
-
+ 
         # T is the effective number of steps taken (max(final_steps, 1.0))
         peace_metric = N - (sum_freeze_steps / T)
-
+ 
         # Normalize action counts by (Total Steps - Frozen Steps)
         alive_steps = max_steps - final_freeze_steps
         final_actions_norm = final_actions / (alive_steps[:, None] + 1e-8)
-
-        return final_rewards, sustainability, equality, peace_metric, final_actions_norm, final_apples, avg_positive_reward_timesteps, final_freeze_steps
-
+ 
+        return final_rewards, sustainability, equality, peace_metric, final_actions_norm, final_apples, avg_positive_reward_timesteps, final_freeze_steps, final_original_rewards_sum, final_shaped_rewards_sum
+ 
     # Generate random seeds for each episode
     rng = jax.random.PRNGKey(eval_seed)
     episode_rngs = jax.random.split(rng, num_episodes)
-
+ 
     # Run all episodes in parallel using vmap
-    all_episode_rewards, all_sustainability, all_equality, all_peace, all_actions, all_apples, all_positive_reward_timesteps, all_freeze_steps = jax.vmap(run_single_episode)(episode_rngs)
-
+    (all_episode_rewards, all_sustainability, all_equality, all_peace,
+     all_actions, all_apples, all_positive_reward_timesteps, all_freeze_steps,
+     all_original_rewards, all_shaped_rewards) = jax.vmap(run_single_episode)(episode_rngs)
+ 
     # 1. Summary dictionary for the ORIGINAL general JSON (No player_i_returns)
     summary_metrics = {
         "return": jnp.mean(all_episode_rewards, axis=1).tolist(),
@@ -1032,16 +1097,18 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         "equality": all_equality.tolist(),
         "peace": all_peace.tolist(),
     }
-
+ 
     # 2. Raw dictionary for the AGENT-SPECIFIC JSONs
     raw_data = {
-        "returns": all_episode_rewards,           # Shape: (episodes, agents)
-        "actions": all_actions,                   # Shape: (episodes, agents, action_dim)
-        "apples": all_apples,                     # Shape: (episodes, agents)
-        "freeze_steps": all_freeze_steps,         # Shape: (episodes, agents)
-        "pos_reward_timesteps": all_positive_reward_timesteps # Shape: (episodes, agents)
+        "returns": all_episode_rewards,                  # Shape: (episodes, agents)
+        "actions": all_actions,                          # Shape: (episodes, agents, action_dim)
+        "apples": all_apples,                            # Shape: (episodes, agents)
+        "freeze_steps": all_freeze_steps,                # Shape: (episodes, agents)
+        "pos_reward_timesteps": all_positive_reward_timesteps,  # Shape: (episodes, agents)
+        "original_rewards": all_original_rewards,        # Shape: (episodes, agents)
+        "shaped_rewards": all_shaped_rewards,              # Shape: (episodes, agents)
     }
-
+ 
     return {"summary": summary_metrics, "raw": raw_data}
 
 def evaluate(params, env, save_path, config, save_video=True, step=0):

@@ -1337,7 +1337,7 @@ class Harvest_timeout(MultiAgentEnv):
             )
 
             return state
-
+                                
         # ── Critical-state detector ──────────────────────────────────────────────
         # Defined here (inside __init__) so it closes over OBS_SIZE and Items,
         # and can be re-used inside _step and exposed as self.is_obs_critical.
@@ -1347,11 +1347,10 @@ class Harvest_timeout(MultiAgentEnv):
         #   6    : other agents
         #   7-10 : relative orientations
         def _is_obs_critical(obs: jnp.ndarray) -> jnp.ndarray:
-            """
-            Returns True if a single agent observation represents a critical state.
-            obs shape: (OBS_SIZE, OBS_SIZE, 11)
-            The agent always faces 'up'; center is (OBS_SIZE//2, OBS_SIZE//2).
-            """
+            # Returns True if a single agent observation represents a critical state.
+            # obs shape: (OBS_SIZE, OBS_SIZE, 11)
+            # The agent always faces 'up'; center is (OBS_SIZE//2, OBS_SIZE//2).
+            
             apple_map = obs[:, :, 3]   # 1 where apple present, else 0
 
             # Endangered apple: apple one step ahead with < 2 apple neighbours
@@ -1370,9 +1369,43 @@ class Harvest_timeout(MultiAgentEnv):
                            apple_map[fwd_r - 1, fwd_c + 1] +
                            apple_map[fwd_r + 1, fwd_c - 1] +
                            apple_map[fwd_r + 1, fwd_c + 1])
-            is_endangered = has_apple & (nb_sum < 1)
+            is_endangered = has_apple & (nb_sum < 2)
 
             return is_endangered
+        """
+
+        # ── Critical-state detector (version 2: agent in zap beam) ──────────────────
+        def _is_obs_critical(obs: jnp.ndarray) -> jnp.ndarray:
+            
+            # Returns True if at least one other agent is within the agent's zap beam
+            # zone, using the same geometry as zap_beam_width / zap_beam_length.
+
+            # obs shape: (OBS_SIZE, OBS_SIZE, 11)
+            # Channel 6 = other agents.
+            # The agent always faces 'up'; center = (OBS_SIZE//2, OBS_SIZE//2).
+
+            # Beam geometry (agent faces up → forward = decreasing row):
+            # rows  fwd=1..zap_beam_length-1 : center_col ± zap_beam_width  (full width)
+            # row   fwd=zap_beam_length       : center_col only              (tip)
+            
+            others_map = obs[:, :, 6]   # 1 where another agent is present, else 0
+
+            ctr_r = self.OBS_SIZE // 2
+            ctr_c = self.OBS_SIZE // 2
+
+            # Build the list of cell checks at Python time — these are constants.
+            beam_cells = []
+            for fwd in range(1, self.zap_beam_length + 1):
+                if fwd == self.zap_beam_length:
+                    # Beam tip: centre column only
+                    beam_cells.append(others_map[ctr_r - fwd, ctr_c])
+                else:
+                    # Full-width rows
+                    for side in range(-self.zap_beam_width, self.zap_beam_width + 1):
+                        beam_cells.append(others_map[ctr_r - fwd, ctr_c + side])
+
+            return jnp.any(jnp.stack(beam_cells))
+        """
 
         def _step(
             key: chex.PRNGKey,

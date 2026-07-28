@@ -22,10 +22,10 @@
   "jit" : True
   "intrinsic_motivation":
     "im_type": "social_conformity"
-    "im_w": 1.0
+    "im_w": 2.0
 
 "ANNEAL_LR": True
-"SEED": 0
+"SEED": 3
 "NUM_SEEDS": 1
 "TUNE": False
 
