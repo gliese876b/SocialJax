@@ -1,0 +1,38 @@
+wandb/offline-run-20261030_152622-tv9px58w  gamma=0.99 seed=42
+wandb/offline-run-20261030_195034-8r7sdppm  gamma=0.995 seed=42
+wandb/offline-run-20261031_000923-hvbuagyl  gamma=0.99 seed=52
+wandb/offline-run-20261031_042712-q5yzmlvm  gamma=0.995 seed=52
+wandb/offline-run-20261031_084456-2rrb5x8t  gamma=0.99 seed=62
+wandb/offline-run-20261031_130236-guts9qk1  gamma=0.995 seed=62
+wandb/offline-run-20261031_172124-esmry57i  gamma=0.99 seed=72
+wandb/offline-run-20261031_214035-783kuq6u  gamma=0.995 seed=72
+wandb/offline-run-20261101_015947-g594wp00  gamma=0.99 seed=82
+wandb/offline-run-20261101_061713-muh8to3j  gamma=0.995 seed=82
+wandb/offline-run-20261102_154441-pmla2wv3  seed=42
+wandb/offline-run-20261102_200702-8yhmznwq  seed=52
+wandb/offline-run-20261103_002701-d3a00ypk  seed=62
+wandb/offline-run-20261103_044411-gt34lujb  seed=72
+wandb/offline-run-20261103_090125-j7dj4bf3  seed=82
+wandb/offline-run-20261103_154845-stt49ur7  w=0.02 seed=42
+wandb/offline-run-20261103_201138-qay4dw9h  w=0.2 seed=42
+wandb/offline-run-20261104_003200-iekx5e57  w=0.02 seed=52
+wandb/offline-run-20261104_045037-7pj8b6pr  w=0.2 seed=52
+wandb/offline-run-20261104_090904-gyjlzawo  w=0.02 seed=62
+wandb/offline-run-20261104_133125-yzgi7lnj  w=0.2 seed=62
+wandb/offline-run-20261105_092806-3bla4j70  w=2.0 seed=42
+wandb/offline-run-20261105_140115-o5zv69j4  w=2.0 seed=52
+wandb/offline-run-20261105_182418-yhshfxos  w=2.0 seed=62
+wandb/offline-run-20261105_224510-dmq9sbzc  w=3.0 seed=42
+wandb/offline-run-20261106_030439-uv5x6tgm  w=3.0 seed=52
+wandb/offline-run-20261106_030439-uv5x6tgm  w=3.0 seed=62
+wandb/offline-run-20261106_120125-u806di6p  w=1.2 seed=42
+wandb/offline-run-20261106_162918-8sm8w5fm  w=1.2 seed=52
+wandb/offline-run-20261106_205425-mvg34zk5  w=1.2 seed=62
+wandb/offline-run-20261107_011835-fkxmo7oq  w=1.5 seed=42
+wandb/offline-run-20261107_054146-mh7hpn7m  w=1.5 seed=52
+wandb/offline-run-20261107_100428-6c2gd7h0  w=1.5 seed=62
+wandb/offline-run-20261107_142808-xc5rsr53  w=1.7 seed=42
+wandb/offline-run-20261107_185244-hwnw4kr8  w=1.7 seed=52
+wandb/offline-run-20261107_231715-qgi03ftw  w=1.7 seed=62
+wandb/offline-run-20261109_163457-wx4b44lz  w=2.0 seed=72
+wandb/offline-run-20261109_210236-565myl0w  w=2.0 seed=82

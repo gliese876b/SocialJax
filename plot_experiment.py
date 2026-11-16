@@ -540,6 +540,7 @@ if __name__ == "__main__":
     # Regular metrics
     experiment_json_files = []
     for file_path in directory.rglob('*.json'):
-        experiment_json_files.append(file_path)
+        if 'agent' not in file_path.name.lower():
+            experiment_json_files.append(file_path)
 
     plot_experiments(experiment_json_files, metric_to_plot, env_name, args['bounds'])

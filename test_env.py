@@ -287,7 +287,6 @@ def run_episode(
     print("Observation shape:", obs.shape)
 
     visualize_grid_terminal(state, env)
-
     perform_consistency_checks(0, state, env)
 
     # Storage for rendering
@@ -347,7 +346,7 @@ def run_episode(
             # Step environment
             rng, step_rng = jax.random.split(rng)
             obs, state, rewards, done_dict, info = env.step(step_rng, state, actions)
-
+            print(info)
             visualize_grid_terminal(state, env)
 
             # Update episode info

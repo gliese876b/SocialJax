@@ -1,4 +1,5 @@
 from enum import IntEnum
+from logging import info
 import math
 from typing import Any, Optional, Tuple, Union, Dict
 from functools import partial
@@ -86,6 +87,16 @@ STEP = jnp.array(
     ],
     dtype=jnp.int8,
 )
+
+ENDANGERED_NEIGHBOR_THRESHOLD = 3   # endangered <=> fewer than this many apple neighbours
+APPLE_NEIGHBOR_OFFSETS = ((-1,0),(1,0),(0,-1),(0,1),(-2,0),(2,0),(0,-2),(0,2),
+                          (-1,-1),(-1,1),(1,-1),(1,1))  
+
+def apple_neighbor_counts(grid):
+    """(R, C) int32: number of apples in the 12-cell neighbourhood of every cell."""
+    R, C = grid.shape
+    a = jnp.pad((grid == Items.apple).astype(jnp.int32), 2)
+    return sum(a[2 + dr: 2 + dr + R, 2 + dc: 2 + dc + C] for dr, dc in APPLE_NEIGHBOR_OFFSETS)
 
 def ascii_map_to_matrix(map_ASCII, char_to_int):
     """
@@ -1059,23 +1070,14 @@ class Harvest_timeout(MultiAgentEnv):
                 - jnp.ndarray of new rotated grid.
 
             '''
-            grid = jnp.where(
-                agent_loc[2] == 1,
-                jnp.rot90(grid, k=1, axes=(0, 1)),
+            return jax.lax.switch(
+                (2 - agent_loc[2]) % 4,
+                [lambda g: g,
+                lambda g: jnp.rot90(g, 1),
+                lambda g: jnp.rot90(g, 2),
+                lambda g: jnp.rot90(g, 3)],
                 grid,
             )
-            grid = jnp.where(
-                agent_loc[2] == 2,
-                jnp.rot90(grid, k=2, axes=(0, 1)),
-                grid,
-            )
-            grid = jnp.where(
-                agent_loc[2] == 3,
-                jnp.rot90(grid, k=3, axes=(0, 1)),
-                grid,
-            )
-
-            return grid
 
         def _get_obs_point(agent_loc: jnp.ndarray) -> jnp.ndarray:
             '''
@@ -1336,7 +1338,14 @@ class Harvest_timeout(MultiAgentEnv):
                 freeze=new_freeze
             )
 
-            return state
+            cell_hit = jnp.isin(all_zaped_grid, self._agents)                      # -1 for non-zappers -> False
+            zap_hits = cell_hit.reshape(self.num_agents, num_beam_cells).sum(axis=1).astype(jnp.int32)
+
+            in_beam = jnp.isin(current_items, self._agents).reshape(self.num_agents, num_beam_cells).any(axis=1)
+            zap_opp = (in_beam & is_unfrozen).astype(jnp.int32)
+            zap_ok  = (zap_hits > 0).astype(jnp.int32)
+
+            return state, zap_hits, zap_opp, zap_ok
                                 
         # ── Critical-state detector ──────────────────────────────────────────────
         # Defined here (inside __init__) so it closes over OBS_SIZE and Items,
@@ -1439,7 +1448,7 @@ class Harvest_timeout(MultiAgentEnv):
             # ============================================================
 
             # 1. Apply Zapping interaction. _interact clears old beams, calculates, and draws new beams.
-            state = _interact(subkey, state, actions)
+            state, zap_hits, zap_opp, zap_ok = _interact(subkey, state, actions)
             freeze_after_zap = state.freeze
             is_frozen_now = freeze_after_zap > 0
 
@@ -1539,6 +1548,16 @@ class Harvest_timeout(MultiAgentEnv):
 
             apple_matches = jax.vmap(apple_matcher)(p=final_move_locs).reshape(self.num_agents, 1)
             apple_matches = apple_matches & (~is_frozen_now[:, None]) # Only unfrozen can collect
+
+            nb_counts = apple_neighbor_counts(state.grid)
+            nb_here = nb_counts[final_move_locs[:, 0], final_move_locs[:, 1]]   # garbage for purgatory, masked below
+            endangered_collected = (apple_matches[:, 0] & (nb_here < ENDANGERED_NEIGHBOR_THRESHOLD)).astype(jnp.int32)   
+
+            ahead = state.agent_locs[:, :2] + STEP[state.agent_locs[:, 2], :2]
+            in_grid = (ahead[:, 0] >= 0) & (ahead[:, 0] < self.GRID_SIZE_ROW) & (ahead[:, 1] >= 0) & (ahead[:, 1] < self.GRID_SIZE_COL)
+            ar, ac = jnp.clip(ahead[:, 0], 0, self.GRID_SIZE_ROW - 1), jnp.clip(ahead[:, 1], 0, self.GRID_SIZE_COL - 1)
+            endangered_opp = (in_grid & ~is_frozen_now & (state.grid[ar, ac] == Items.apple)
+                  & (nb_counts[ar, ac] < ENDANGERED_NEIGHBOR_THRESHOLD)).astype(jnp.int32)         
 
             new_invs = state.agent_invs + apple_matches
             state = state.replace(agent_invs=new_invs)
@@ -1693,23 +1712,8 @@ class Harvest_timeout(MultiAgentEnv):
 
             grid_apple = state.grid
 
-            def count_apple(apple_locs):
-                apple_nums = jnp.where((grid_apple[apple_locs[0]-1, apple_locs[1]] == 3) & (apple_locs[0]-1 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0]+1, apple_locs[1]] == 3) & (apple_locs[0]+1 < self.GRID_SIZE_ROW), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0], apple_locs[1]-1] == 3) & (apple_locs[1]-1 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0], apple_locs[1]+1] == 3) & (apple_locs[1]+1 < self.GRID_SIZE_COL), 1, 0)+ \
-                                jnp.where((grid_apple[apple_locs[0]-2, apple_locs[1]] == 3) & (apple_locs[0]-2 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0]+2, apple_locs[1]] == 3) & (apple_locs[0]+2 < self.GRID_SIZE_ROW), 1 ,0) + \
-                                jnp.where((grid_apple[apple_locs[0], apple_locs[1]-2] == 3) & (apple_locs[1]-2 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0], apple_locs[1]+2] == 3) & (apple_locs[1]+2 < self.GRID_SIZE_COL), 1 ,0) + \
-                                jnp.where((grid_apple[apple_locs[0]-1, apple_locs[1]-1] == 3) & (apple_locs[0]-1 >=0) & (apple_locs[1]-1 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0]-1, apple_locs[1]+1] == 3) & (apple_locs[0]-1 >=0) & (apple_locs[1]+1 < self.GRID_SIZE_COL), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0]+1, apple_locs[1]-1] == 3) & (apple_locs[1]+1 < self.GRID_SIZE_COL) & (apple_locs[1]-1 >=0), 1, 0) + \
-                                jnp.where((grid_apple[apple_locs[0]+1, apple_locs[1]+1] == 3) & (apple_locs[0]+1 < self.GRID_SIZE_ROW) & (apple_locs[1]+1 < self.GRID_SIZE_COL) , 1, 0)
-
-                return apple_nums
-
-            near_apple_nums = jax.vmap(count_apple)(self.SPAWNS_APPLE)
+            nb_map = apple_neighbor_counts(grid_apple)
+            near_apple_nums = nb_map[self.SPAWNS_APPLE[:, 0], self.SPAWNS_APPLE[:, 1]]
 
             def regrow_apple(apple_locs, near_apple, prob):
                 new_apple = jnp.where((((grid_apple[apple_locs[0], apple_locs[1]] == Items.empty) & (near_apple == 0) & (prob > 1)) |
@@ -1753,10 +1757,7 @@ class Harvest_timeout(MultiAgentEnv):
 
             # --- Intrinsic motivation ---
             if self.im_type is not None:
-                new_smooth = (
-                    self.im_gamma * self.im_lambda * state.smooth_rewards
-                    + rewards.squeeze()  # r_i^t is post-multiplier, post-sharing
-                )
+                new_smooth = jnp.maximum(self.im_gamma * self.im_lambda * state.smooth_rewards + rewards.squeeze(), 1e-7)
                 state = state.replace(smooth_rewards=new_smooth)
 
                 if self.im_type == "ia":
@@ -1766,7 +1767,7 @@ class Harvest_timeout(MultiAgentEnv):
                            if k not in ("im_gamma", "im_lambda")}
                     )
                 elif self.im_type == "svo":
-                    rewards, _ = self._apply_svo(
+                    rewards, svo_theta = self._apply_svo(
                         rewards, new_smooth,
                         **{k: v for k, v in self.im_cfg.items()
                            if k not in ("im_gamma", "im_lambda")}
@@ -1778,6 +1779,11 @@ class Harvest_timeout(MultiAgentEnv):
                     "smooth_rewards":    new_smooth,
                     "shaped_rewards":    rewards.squeeze(),
                 }
+
+                if self.im_type == "svo":
+                    theta_deg = jnp.rad2deg(svo_theta).reshape(-1)                      # (num_agents,)
+                    info["svo_theta"] = theta_deg                                       # per agent, degrees
+                    info["svo_theta_mean"] = jnp.full((self.num_agents,), jnp.mean(theta_deg))  # group mean
             else:
                 info = {
                     "original_rewards":      individual_rewards.squeeze(),
@@ -1791,6 +1797,11 @@ class Harvest_timeout(MultiAgentEnv):
             info["apples_collected"] = apple_matches.squeeze().astype(jnp.int32)
             info["actions_taken"] = actions.squeeze() # shape: (num_agents,)
             info["is_critical"] = is_critical
+            info["endangered_apples_collected"] = endangered_collected   # (num_agents,)
+            info["zap_hits"] = zap_hits                                  # (num_agents,)
+            info["endangered_opportunities"] = endangered_opp
+            info["zap_opportunities"] = zap_opp
+            info["zap_successes"] = zap_ok
 
             state_nxt = State(
                 agent_locs=state.agent_locs,
@@ -1862,7 +1873,7 @@ class Harvest_timeout(MultiAgentEnv):
             player_dir = jax.random.randint(
                 subkey, shape=(
                     num_agents,
-                    ), minval=0, maxval=3, dtype=jnp.int8
+                    ), minval=0, maxval=4, dtype=jnp.int8
             )
 
             agent_locs = jnp.array(
@@ -1887,7 +1898,7 @@ class Harvest_timeout(MultiAgentEnv):
 
                 freeze=freeze,
                 reborn_locs = agent_locs,
-                smooth_rewards=jnp.zeros(num_agents, dtype=jnp.float32),
+                smooth_rewards=jnp.full(num_agents, 1e-7, dtype=jnp.float32),
             )
 
         def reset(

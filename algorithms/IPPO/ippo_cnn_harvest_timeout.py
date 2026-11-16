@@ -489,7 +489,7 @@ def make_train(config):
 
                         # CALCULATE ACTOR LOSS
                         ratio = jnp.exp(log_prob - traj_batch.log_prob)
-                        # gae = (gae - gae.mean()) / (gae.std() + 1e-8) # REMOVED TO OBSERVE THE IMPACT OF DIFFERENT REWARD SCALES
+                        gae = (gae - gae.mean()) / (gae.std() + 1e-8) # REMOVED TO OBSERVE THE IMPACT OF DIFFERENT REWARD SCALES
                         loss_actor1 = ratio * gae
                         loss_actor2 = (
                             jnp.clip(
@@ -580,8 +580,8 @@ def make_train(config):
             def eval_callback(step, params):
                 import subprocess, pickle, tempfile, json
                 import numpy as np
-
-                print(f"\n{'='*60}\nRunning evaluation at step {step}...\n{'='*60}")
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                print(f"\n{'='*60}\nRunning evaluation at step {step}...\n{'='*60} at {timestamp}")
 
                 # Write params and config to temp files
                 with tempfile.NamedTemporaryFile(delete=False, suffix='.pkl') as f:
@@ -656,6 +656,11 @@ def make_train(config):
                     agent_metrics = {
                         "return": raw_data["returns"][:, agent_idx].tolist(),
                         "apples_collected": raw_data["apples"][:, agent_idx].tolist(),
+                        "endangered_apples_collected": raw_data["endangered_apples_collected"][:, agent_idx].tolist(), 
+                        "zap_hits": raw_data["zap_hits"][:, agent_idx].tolist(),
+                        "endangered_opportunities": raw_data["endangered_opportunities"][:, agent_idx].tolist(),
+                        "zap_opportunities": raw_data["zap_opportunities"][:, agent_idx].tolist(),
+                        "zap_successes": raw_data["zap_successes"][:, agent_idx].tolist(),
                         "frozen_steps": raw_data["freeze_steps"][:, agent_idx].tolist(),
                         "sustainability": raw_data["pos_reward_timesteps"][:, agent_idx].tolist(),
                         # Intrinsic motivation tracing (zero when social_conformity not active)
@@ -684,7 +689,8 @@ def make_train(config):
                     with open(agent_path, 'w') as f: json.dump(agent_data, f, indent=2)
 
                 # Check if this is the final update of the training run
-                is_final_step = (step >= config["TOTAL_TIMESTEPS"])
+                final_step = config["NUM_UPDATES"] * config["NUM_STEPS"] * config["NUM_ENVS"]
+                is_final_step = (int(step) >= final_step)
 
                 if is_final_step:
                     print(f"\nGenerating FINAL video for step {step}...")
@@ -708,7 +714,7 @@ def make_train(config):
 
             current_step = update_step * config["NUM_STEPS"] * config["NUM_ENVS"]
 
-            should_eval = (current_step > 0) & (update_step % config["EVAL_INTERVAL"] == 0)
+            should_eval = (current_step > 0) & ((update_step % config["EVAL_INTERVAL"] == 0) | (update_step == config["NUM_UPDATES"]))
             should_eval = jnp.asarray(should_eval)  # ensure scalar if needed
 
             def eval_branch(_):
@@ -827,9 +833,7 @@ def single_run(config):
             save_params(train_state[i], save_path)
             params.append(load_params(save_path))
 
-    evaluate(params, socialjax.make(config["ENV_NAME"], **config["ENV_KWARGS"]), f"{config['RUN_OUTPUT_DIR']}/evaluation", config)
-
-    json_filename = f"{config['ENV_NAME']}_ippo_seed{config['SEED']}.json"
+    json_filename = f"{config['ENV_NAME']}_ippo_seed_{config['SEED']}.json"
     json_path = os.path.join(f"{config['RUN_OUTPUT_DIR']}/evaluation", json_filename)
 
     if os.path.exists(json_path):
@@ -842,7 +846,7 @@ def single_run(config):
         env_name = config["ENV_NAME"]
         algo_name = get_algo_name(config)
         seed_name = f"seed_{config['SEED']}"
-        seed_results = data[env_name][f"{env_name}"][algo_name][seed_name]
+        seed_results = data["socialjax"][env_name][algo_name][seed_name]
 
         num_checkpoints = len([k for k in seed_results.keys() if k.startswith("step_")])
 
@@ -898,6 +902,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
     im_cfg = config.get("ENV_KWARGS", {}).get("intrinsic_motivation", {})
     im_type = im_cfg.get("im_type")  # None, "ia", "svo", or "social_conformity"
     shaped_key = "shaped_rewards" if im_type is not None else "group_shared_rewards"
+    greedy = config.get("EVAL_GREEDY", False)   # evaluation only; training rollouts stay stochastic
  
     track_conformity = (
         im_type == "social_conformity"
@@ -928,6 +933,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         # Trackers
         action_counts = jnp.zeros((eval_env.num_agents, num_actions))
         apple_counts = jnp.zeros(eval_env.num_agents)
+        event_counts = jnp.zeros((eval_env.num_agents, 5))
         # General reward-shaping tracers — always populated regardless of im_type
         original_rewards_sum = jnp.zeros(eval_env.num_agents)
         shaped_rewards_sum   = jnp.zeros(eval_env.num_agents)
@@ -936,6 +942,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
             """Single step in the episode"""
             (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts,
              current_total_freeze_steps, steps_taken, current_actions, current_apples,
+             current_events,
              current_original_rewards_sum, current_shaped_rewards_sum, rng, done) = carry
  
             # Select actions
@@ -946,7 +953,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
                 # Reshape for network: (num_agents, H, W, C) -> already correct shape
                 pi, _ = network.apply(params, obs_batch)
                 rng, _rng = jax.random.split(rng)
-                action = pi.sample(seed=_rng)
+                action = pi.mode() if greedy else pi.sample(seed=_rng)
                 env_act = unbatchify(action, eval_env.agents, 1, eval_env.num_agents)
                 env_act = [v.squeeze() for v in env_act.values()]
             else:
@@ -958,7 +965,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
                     obs_single = jnp.expand_dims(obs_batch[i], axis=0)
                     pi, _ = network[i].apply(params[i], obs_single)
                     rng, _rng = jax.random.split(rng)
-                    action = pi.sample(seed=_rng)
+                    action = pi.mode() if greedy else pi.sample(seed=_rng)
                     env_act.append(action.squeeze())
  
             # Step environment
@@ -967,11 +974,14 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
  
             # Accumulate rewards (only if not done)
             done_flag = done_dict["__all__"]
-            episode_rewards = episode_rewards + reward * (1 - done_flag)
+            # group metrics (return, equality, sustainability) use the EXTERNAL reward;
+            # under intrinsic motivation `reward` is the shaped signal
+            env_reward = info["original_rewards"] if im_type is not None else reward
+            episode_rewards = episode_rewards + env_reward * (1 - done_flag)
  
             # Track positive rewards for sustainability
             # For each agent, if reward > 0, accumulate the timestep
-            has_positive_reward = (reward > 0).astype(jnp.float32)
+            has_positive_reward = (env_reward > 0).astype(jnp.float32)
             pos_reward_sum = pos_reward_sum + t * has_positive_reward * (1 - done_flag)
             pos_reward_counts = pos_reward_counts + has_positive_reward * (1 - done_flag)
  
@@ -986,6 +996,10 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
             new_actions = current_actions + action_updates * (1 - done_flag) * (1 - is_frozen[:, None]) # count actions only when the agent is alive
  
             new_apples = current_apples + info["apples_collected"] * (1 - done_flag)
+
+            new_events = current_events + jnp.stack(
+                [info["endangered_apples_collected"], info["endangered_opportunities"], info["zap_hits"],
+                info["zap_opportunities"], info["zap_successes"]], axis=-1) * (1 - done_flag)
  
             steps_taken = steps_taken + (1 - done_flag)
  
@@ -1021,16 +1035,19 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
  
             return (obs, state, episode_rewards, pos_reward_sum, pos_reward_counts,
                     new_total_freeze_steps, steps_taken, new_actions, new_apples,
+                    new_events,
                     new_original_rewards_sum, new_shaped_rewards_sum, rng, done_flag), None
  
         # Run episode for max steps
         max_steps = config["ENV_KWARGS"].get("num_inner_steps", 1000)
         (_, _, final_rewards, final_pos_sum, final_pos_counts,
          final_freeze_steps, final_steps, final_actions, final_apples,
+         final_events,
          final_original_rewards_sum, final_shaped_rewards_sum, _, _), _ = jax.lax.scan(
             episode_step,
             (obs, state, episode_rewards, positive_reward_timesteps_sum,
              positive_reward_counts, total_freeze_steps, 0.0, action_counts, apple_counts,
+             event_counts,
              original_rewards_sum, shaped_rewards_sum, rng, False),
             jnp.arange(max_steps),
             length=max_steps
@@ -1079,7 +1096,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         alive_steps = max_steps - final_freeze_steps
         final_actions_norm = final_actions / (alive_steps[:, None] + 1e-8)
  
-        return final_rewards, sustainability, equality, peace_metric, final_actions_norm, final_apples, avg_positive_reward_timesteps, final_freeze_steps, final_original_rewards_sum, final_shaped_rewards_sum
+        return final_rewards, sustainability, equality, peace_metric, final_actions_norm, final_apples, final_events, avg_positive_reward_timesteps, final_freeze_steps, final_original_rewards_sum, final_shaped_rewards_sum
  
     # Generate random seeds for each episode
     rng = jax.random.PRNGKey(eval_seed)
@@ -1087,7 +1104,7 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
  
     # Run all episodes in parallel using vmap
     (all_episode_rewards, all_sustainability, all_equality, all_peace,
-     all_actions, all_apples, all_positive_reward_timesteps, all_freeze_steps,
+     all_actions, all_apples, all_events, all_positive_reward_timesteps, all_freeze_steps,
      all_original_rewards, all_shaped_rewards) = jax.vmap(run_single_episode)(episode_rngs)
  
     # 1. Summary dictionary for the ORIGINAL general JSON (No player_i_returns)
@@ -1103,6 +1120,11 @@ def run_evaluation_episodes(params, config, eval_seed, num_episodes=10):
         "returns": all_episode_rewards,                  # Shape: (episodes, agents)
         "actions": all_actions,                          # Shape: (episodes, agents, action_dim)
         "apples": all_apples,                            # Shape: (episodes, agents)
+        "endangered_apples_collected": all_events[..., 0],
+        "endangered_opportunities":    all_events[..., 1],
+        "zap_hits":                    all_events[..., 2],
+        "zap_opportunities":           all_events[..., 3],
+        "zap_successes":               all_events[..., 4],
         "freeze_steps": all_freeze_steps,                # Shape: (episodes, agents)
         "pos_reward_timesteps": all_positive_reward_timesteps,  # Shape: (episodes, agents)
         "original_rewards": all_original_rewards,        # Shape: (episodes, agents)
@@ -1125,6 +1147,8 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
     obs, state = env.reset(_rng)
     done = False
 
+    greedy = config.get("EVAL_GREEDY", False)
+
     # Initialize return tracking
     episode_rewards = {f"player_{i}": 0.0 for i in range(env.num_agents)}
 
@@ -1141,7 +1165,7 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
             network = ActorCritic(action_dim=env.action_space().n, activation="relu")
             pi, _ = network.apply(params, obs_batch)
             rng, _rng = jax.random.split(rng)
-            actions = pi.sample(seed=_rng)
+            actions = pi.mode() if greedy else pi.sample(seed=_rng)          
             env_act = {k: v.squeeze() for k, v in unbatchify(
                 actions, env.agents, 1, env.num_agents
             ).items()}
@@ -1153,7 +1177,7 @@ def evaluate(params, env, save_path, config, save_video=True, step=0):
                 obs = jnp.expand_dims(obs_batch[i], axis=0)
                 pi, _ = network[i].apply(params[i], obs)
                 rng, _rng = jax.random.split(rng)
-                single_action = pi.sample(seed=_rng)
+                single_action = pi.mode() if greedy else pi.sample(seed=_rng)
                 env_act[env.agents[i]] = single_action
 
         # Step environment

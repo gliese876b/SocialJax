@@ -1,0 +1,1985 @@
+wandb: Tracking run with wandb version 0.27.2
+wandb: W&B syncing is set to `offline` in this directory. Run `wandb online` or set WANDB_MODE=online to enable cloud syncing.
+wandb: Run data is saved locally in /home/ademir/Desktop/SocialJax/wandb/offline-run-20261106_072257-zx7p5qei
+2026-11-06 07:23:19.589938: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2026-11-06 07:23:19.590009: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2026-11-06 07:23:19.590023: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+2026-11-06 07:23:19.590042: W external/xla/xla/service/gpu/autotuning/dot_search_space.cc:200] All configs were filtered out because none of them sufficiently match the hints. Maybe the hints set does not contain a good representative set of valid configs?Working around this by using the full hints set instead.
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+
+[2026-11-06 07:22:58] Started training...
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+input_obs_shape (32, 11, 11, 11)
+
+============================================================
+Running evaluation at step 16384...
+============================================================ at 2026-11-06 07:24:04
+  return: 16.52 ± 3.36
+  sustainability: 483.24 ± 59.18
+  equality: 0.49 ± 0.09
+  peace: 6.33 ± 0.23
+
+Skipping video generation for step 16384 (Only saved at final step).
+
+============================================================
+Running evaluation at step 32768...
+============================================================ at 2026-11-06 07:24:29
+  return: 17.64 ± 2.41
+  sustainability: 502.52 ± 45.39
+  equality: 0.59 ± 0.06
+  peace: 6.23 ± 0.19
+
+Skipping video generation for step 32768 (Only saved at final step).
+
+============================================================
+Running evaluation at step 49152...
+============================================================ at 2026-11-06 07:24:54
+  return: 19.14 ± 3.32
+  sustainability: 565.51 ± 18.92
+  equality: 0.62 ± 0.12
+  peace: 6.19 ± 0.19
+
+Skipping video generation for step 49152 (Only saved at final step).
+
+============================================================
+Running evaluation at step 65536...
+============================================================ at 2026-11-06 07:25:18
+  return: 19.04 ± 3.65
+  sustainability: 543.33 ± 53.57
+  equality: 0.60 ± 0.06
+  peace: 6.21 ± 0.25
+
+Skipping video generation for step 65536 (Only saved at final step).
+
+============================================================
+Running evaluation at step 81920...
+============================================================ at 2026-11-06 07:25:43
+  return: 19.46 ± 2.01
+  sustainability: 493.32 ± 23.30
+  equality: 0.57 ± 0.06
+  peace: 6.34 ± 0.20
+
+Skipping video generation for step 81920 (Only saved at final step).
+
+============================================================
+Running evaluation at step 98304...
+============================================================ at 2026-11-06 07:26:08
+  return: 19.96 ± 2.08
+  sustainability: 517.53 ± 74.94
+  equality: 0.56 ± 0.07
+  peace: 6.41 ± 0.22
+
+Skipping video generation for step 98304 (Only saved at final step).
+
+============================================================
+Running evaluation at step 114688...
+============================================================ at 2026-11-06 07:26:33
+  return: 16.30 ± 2.37
+  sustainability: 569.43 ± 34.92
+  equality: 0.57 ± 0.06
+  peace: 6.02 ± 0.26
+
+Skipping video generation for step 114688 (Only saved at final step).
+
+============================================================
+Running evaluation at step 131072...
+============================================================ at 2026-11-06 07:26:57
+  return: 18.42 ± 4.11
+  sustainability: 534.85 ± 102.14
+  equality: 0.57 ± 0.05
+  peace: 6.14 ± 0.26
+
+Skipping video generation for step 131072 (Only saved at final step).
+
+============================================================
+Running evaluation at step 147456...
+============================================================ at 2026-11-06 07:27:22
+  return: 19.02 ± 5.68
+  sustainability: 556.86 ± 44.52
+  equality: 0.66 ± 0.09
+  peace: 6.23 ± 0.29
+
+Skipping video generation for step 147456 (Only saved at final step).
+
+============================================================
+Running evaluation at step 163840...
+============================================================ at 2026-11-06 07:27:47
+  return: 25.06 ± 0.68
+  sustainability: 546.08 ± 64.57
+  equality: 0.66 ± 0.05
+  peace: 6.40 ± 0.22
+
+Skipping video generation for step 163840 (Only saved at final step).
+
+============================================================
+Running evaluation at step 180224...
+============================================================ at 2026-11-06 07:28:11
+  return: 22.30 ± 4.12
+  sustainability: 514.45 ± 16.44
+  equality: 0.67 ± 0.04
+  peace: 6.30 ± 0.36
+
+Skipping video generation for step 180224 (Only saved at final step).
+
+============================================================
+Running evaluation at step 196608...
+============================================================ at 2026-11-06 07:28:36
+  return: 23.66 ± 5.64
+  sustainability: 486.61 ± 36.81
+  equality: 0.63 ± 0.07
+  peace: 6.39 ± 0.39
+
+Skipping video generation for step 196608 (Only saved at final step).
+
+============================================================
+Running evaluation at step 212992...
+============================================================ at 2026-11-06 07:29:01
+  return: 24.66 ± 3.24
+  sustainability: 464.57 ± 40.48
+  equality: 0.58 ± 0.06
+  peace: 6.51 ± 0.22
+
+Skipping video generation for step 212992 (Only saved at final step).
+
+============================================================
+Running evaluation at step 229376...
+============================================================ at 2026-11-06 07:29:26
+  return: 27.64 ± 1.83
+  sustainability: 500.55 ± 50.35
+  equality: 0.70 ± 0.04
+  peace: 6.48 ± 0.11
+
+Skipping video generation for step 229376 (Only saved at final step).
+
+============================================================
+Running evaluation at step 245760...
+============================================================ at 2026-11-06 07:29:50
+  return: 27.90 ± 3.17
+  sustainability: 524.70 ± 36.55
+  equality: 0.70 ± 0.04
+  peace: 6.46 ± 0.09
+
+Skipping video generation for step 245760 (Only saved at final step).
+
+============================================================
+Running evaluation at step 262144...
+============================================================ at 2026-11-06 07:30:15
+  return: 28.50 ± 3.38
+  sustainability: 508.81 ± 34.62
+  equality: 0.59 ± 0.04
+  peace: 6.42 ± 0.25
+
+Skipping video generation for step 262144 (Only saved at final step).
+
+============================================================
+Running evaluation at step 278528...
+============================================================ at 2026-11-06 07:30:40
+  return: 29.46 ± 4.62
+  sustainability: 501.04 ± 35.91
+  equality: 0.64 ± 0.08
+  peace: 6.53 ± 0.30
+
+Skipping video generation for step 278528 (Only saved at final step).
+
+============================================================
+Running evaluation at step 294912...
+============================================================ at 2026-11-06 07:31:05
+  return: 30.64 ± 0.83
+  sustainability: 515.74 ± 34.19
+  equality: 0.67 ± 0.06
+  peace: 6.48 ± 0.09
+
+Skipping video generation for step 294912 (Only saved at final step).
+
+============================================================
+Running evaluation at step 311296...
+============================================================ at 2026-11-06 07:31:30
+  return: 27.90 ± 3.16
+  sustainability: 526.69 ± 51.38
+  equality: 0.72 ± 0.08
+  peace: 6.43 ± 0.17
+
+Skipping video generation for step 311296 (Only saved at final step).
+
+============================================================
+Running evaluation at step 327680...
+============================================================ at 2026-11-06 07:31:54
+  return: 26.06 ± 3.23
+  sustainability: 539.53 ± 58.03
+  equality: 0.63 ± 0.05
+  peace: 6.22 ± 0.23
+
+Skipping video generation for step 327680 (Only saved at final step).
+
+============================================================
+Running evaluation at step 344064...
+============================================================ at 2026-11-06 07:32:19
+  return: 31.02 ± 3.89
+  sustainability: 572.60 ± 63.84
+  equality: 0.71 ± 0.04
+  peace: 6.48 ± 0.25
+
+Skipping video generation for step 344064 (Only saved at final step).
+
+============================================================
+Running evaluation at step 360448...
+============================================================ at 2026-11-06 07:32:44
+  return: 30.64 ± 2.48
+  sustainability: 531.16 ± 25.68
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+  equality: 0.72 ± 0.06
+  peace: 6.56 ± 0.21
+
+Skipping video generation for step 360448 (Only saved at final step).
+
+============================================================
+Running evaluation at step 376832...
+============================================================ at 2026-11-06 07:33:09
+  return: 28.94 ± 2.77
+  sustainability: 518.37 ± 31.51
+  equality: 0.68 ± 0.05
+  peace: 6.41 ± 0.16
+
+Skipping video generation for step 376832 (Only saved at final step).
+
+============================================================
+Running evaluation at step 393216...
+============================================================ at 2026-11-06 07:33:34
+  return: 27.40 ± 2.51
+  sustainability: 469.07 ± 41.65
+  equality: 0.64 ± 0.09
+  peace: 6.39 ± 0.13
+
+Skipping video generation for step 393216 (Only saved at final step).
+
+============================================================
+Running evaluation at step 409600...
+============================================================ at 2026-11-06 07:33:58
+  return: 29.30 ± 2.51
+  sustainability: 532.32 ± 33.86
+  equality: 0.66 ± 0.04
+  peace: 6.46 ± 0.17
+
+Skipping video generation for step 409600 (Only saved at final step).
+
+============================================================
+Running evaluation at step 425984...
+============================================================ at 2026-11-06 07:34:23
+  return: 25.98 ± 5.18
+  sustainability: 512.89 ± 44.36
+  equality: 0.69 ± 0.11
+  peace: 6.34 ± 0.35
+
+Skipping video generation for step 425984 (Only saved at final step).
+
+============================================================
+Running evaluation at step 442368...
+============================================================ at 2026-11-06 07:34:48
+  return: 28.28 ± 2.30
+  sustainability: 556.88 ± 38.73
+  equality: 0.72 ± 0.07
+  peace: 6.43 ± 0.13
+
+Skipping video generation for step 442368 (Only saved at final step).
+
+============================================================
+Running evaluation at step 458752...
+============================================================ at 2026-11-06 07:35:13
+  return: 29.00 ± 3.21
+  sustainability: 528.31 ± 25.84
+  equality: 0.77 ± 0.06
+  peace: 6.57 ± 0.20
+
+Skipping video generation for step 458752 (Only saved at final step).
+
+============================================================
+Running evaluation at step 475136...
+============================================================ at 2026-11-06 07:35:37
+  return: 30.98 ± 2.53
+  sustainability: 478.56 ± 43.79
+  equality: 0.76 ± 0.07
+  peace: 6.70 ± 0.26
+
+Skipping video generation for step 475136 (Only saved at final step).
+
+============================================================
+Running evaluation at step 491520...
+============================================================ at 2026-11-06 07:36:02
+  return: 30.64 ± 4.18
+  sustainability: 524.70 ± 42.42
+  equality: 0.71 ± 0.05
+  peace: 6.56 ± 0.07
+
+Skipping video generation for step 491520 (Only saved at final step).
+
+============================================================
+Running evaluation at step 507904...
+============================================================ at 2026-11-06 07:36:27
+  return: 28.94 ± 4.39
+  sustainability: 499.61 ± 66.08
+  equality: 0.73 ± 0.02
+  peace: 6.44 ± 0.19
+
+Skipping video generation for step 507904 (Only saved at final step).
+
+============================================================
+Running evaluation at step 524288...
+============================================================ at 2026-11-06 07:36:52
+  return: 29.30 ± 3.04
+  sustainability: 526.75 ± 63.36
+  equality: 0.70 ± 0.07
+  peace: 6.56 ± 0.06
+
+Skipping video generation for step 524288 (Only saved at final step).
+
+============================================================
+Running evaluation at step 540672...
+============================================================ at 2026-11-06 07:37:16
+  return: 34.08 ± 3.26
+  sustainability: 508.56 ± 26.50
+  equality: 0.69 ± 0.06
+  peace: 6.63 ± 0.23
+
+Skipping video generation for step 540672 (Only saved at final step).
+
+============================================================
+Running evaluation at step 557056...
+============================================================ at 2026-11-06 07:37:42
+  return: 32.86 ± 5.53
+  sustainability: 513.08 ± 24.37
+  equality: 0.74 ± 0.04
+  peace: 6.63 ± 0.19
+
+Skipping video generation for step 557056 (Only saved at final step).
+
+============================================================
+Running evaluation at step 573440...
+============================================================ at 2026-11-06 07:38:06
+  return: 31.64 ± 2.96
+  sustainability: 534.05 ± 33.42
+  equality: 0.67 ± 0.05
+  peace: 6.59 ± 0.17
+
+Skipping video generation for step 573440 (Only saved at final step).
+
+============================================================
+Running evaluation at step 589824...
+============================================================ at 2026-11-06 07:38:31
+  return: 28.16 ± 1.95
+  sustainability: 539.60 ± 21.66
+  equality: 0.71 ± 0.06
+  peace: 6.55 ± 0.17
+
+Skipping video generation for step 589824 (Only saved at final step).
+
+============================================================
+Running evaluation at step 606208...
+============================================================ at 2026-11-06 07:38:56
+  return: 28.44 ± 2.77
+  sustainability: 512.01 ± 25.86
+  equality: 0.70 ± 0.07
+  peace: 6.45 ± 0.22
+
+Skipping video generation for step 606208 (Only saved at final step).
+
+============================================================
+Running evaluation at step 622592...
+============================================================ at 2026-11-06 07:39:21
+  return: 30.14 ± 2.42
+  sustainability: 546.66 ± 55.00
+  equality: 0.67 ± 0.06
+  peace: 6.55 ± 0.15
+
+Skipping video generation for step 622592 (Only saved at final step).
+
+============================================================
+Running evaluation at step 638976...
+============================================================ at 2026-11-06 07:39:45
+  return: 29.30 ± 2.42
+  sustainability: 516.68 ± 45.22
+  equality: 0.73 ± 0.05
+  peace: 6.45 ± 0.10
+
+Skipping video generation for step 638976 (Only saved at final step).
+
+============================================================
+Running evaluation at step 655360...
+============================================================ at 2026-11-06 07:40:10
+  return: 30.16 ± 4.60
+  sustainability: 553.39 ± 24.42
+  equality: 0.70 ± 0.05
+  peace: 6.54 ± 0.23
+
+Skipping video generation for step 655360 (Only saved at final step).
+
+============================================================
+Running evaluation at step 671744...
+============================================================ at 2026-11-06 07:40:35
+  return: 32.90 ± 4.12
+  sustainability: 532.55 ± 42.45
+  equality: 0.68 ± 0.07
+  peace: 6.60 ± 0.31
+
+Skipping video generation for step 671744 (Only saved at final step).
+
+============================================================
+Running evaluation at step 688128...
+============================================================ at 2026-11-06 07:41:00
+  return: 31.44 ± 2.21
+  sustainability: 541.93 ± 39.58
+  equality: 0.72 ± 0.03
+  peace: 6.46 ± 0.14
+
+Skipping video generation for step 688128 (Only saved at final step).
+
+============================================================
+Running evaluation at step 704512...
+============================================================ at 2026-11-06 07:41:24
+  return: 33.98 ± 2.86
+  sustainability: 524.70 ± 9.10
+  equality: 0.74 ± 0.02
+  peace: 6.75 ± 0.24
+
+Skipping video generation for step 704512 (Only saved at final step).
+
+============================================================
+Running evaluation at step 720896...
+============================================================ at 2026-11-06 07:41:49
+  return: 31.24 ± 1.52
+  sustainability: 521.62 ± 45.25
+  equality: 0.69 ± 0.06
+  peace: 6.67 ± 0.09
+
+Skipping video generation for step 720896 (Only saved at final step).
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+
+============================================================
+Running evaluation at step 737280...
+============================================================ at 2026-11-06 07:42:14
+  return: 30.24 ± 2.79
+  sustainability: 468.31 ± 43.05
+  equality: 0.67 ± 0.05
+  peace: 6.43 ± 0.23
+
+Skipping video generation for step 737280 (Only saved at final step).
+
+============================================================
+Running evaluation at step 753664...
+============================================================ at 2026-11-06 07:42:39
+  return: 32.90 ± 3.37
+  sustainability: 510.76 ± 23.20
+  equality: 0.72 ± 0.03
+  peace: 6.57 ± 0.23
+
+Skipping video generation for step 753664 (Only saved at final step).
+
+============================================================
+Running evaluation at step 770048...
+============================================================ at 2026-11-06 07:43:04
+  return: 33.00 ± 2.76
+  sustainability: 508.74 ± 60.89
+  equality: 0.59 ± 0.06
+  peace: 6.52 ± 0.19
+
+Skipping video generation for step 770048 (Only saved at final step).
+
+============================================================
+Running evaluation at step 786432...
+============================================================ at 2026-11-06 07:43:29
+  return: 29.38 ± 3.65
+  sustainability: 542.12 ± 39.82
+  equality: 0.66 ± 0.05
+  peace: 6.42 ± 0.22
+
+Skipping video generation for step 786432 (Only saved at final step).
+
+============================================================
+Running evaluation at step 802816...
+============================================================ at 2026-11-06 07:43:54
+  return: 32.00 ± 4.35
+  sustainability: 545.46 ± 32.62
+  equality: 0.71 ± 0.04
+  peace: 6.58 ± 0.30
+
+Skipping video generation for step 802816 (Only saved at final step).
+
+============================================================
+Running evaluation at step 819200...
+============================================================ at 2026-11-06 07:44:18
+  return: 30.98 ± 2.95
+  sustainability: 529.51 ± 73.25
+  equality: 0.72 ± 0.05
+  peace: 6.56 ± 0.05
+
+Skipping video generation for step 819200 (Only saved at final step).
+
+============================================================
+Running evaluation at step 835584...
+============================================================ at 2026-11-06 07:44:43
+  return: 28.76 ± 5.92
+  sustainability: 490.83 ± 22.13
+  equality: 0.69 ± 0.06
+  peace: 6.28 ± 0.16
+
+Skipping video generation for step 835584 (Only saved at final step).
+
+============================================================
+Running evaluation at step 851968...
+============================================================ at 2026-11-06 07:45:08
+  return: 27.00 ± 5.55
+  sustainability: 485.61 ± 45.84
+  equality: 0.68 ± 0.09
+  peace: 6.37 ± 0.27
+
+Skipping video generation for step 851968 (Only saved at final step).
+
+============================================================
+Running evaluation at step 868352...
+============================================================ at 2026-11-06 07:45:33
+  return: 29.90 ± 3.70
+  sustainability: 561.05 ± 36.59
+  equality: 0.69 ± 0.09
+  peace: 6.44 ± 0.24
+
+Skipping video generation for step 868352 (Only saved at final step).
+
+============================================================
+Running evaluation at step 884736...
+============================================================ at 2026-11-06 07:45:58
+  return: 35.08 ± 4.44
+  sustainability: 513.83 ± 40.70
+  equality: 0.76 ± 0.03
+  peace: 6.71 ± 0.21
+
+Skipping video generation for step 884736 (Only saved at final step).
+
+============================================================
+Running evaluation at step 901120...
+============================================================ at 2026-11-06 07:46:23
+  return: 32.92 ± 2.31
+  sustainability: 479.41 ± 60.05
+  equality: 0.71 ± 0.08
+  peace: 6.51 ± 0.18
+
+Skipping video generation for step 901120 (Only saved at final step).
+
+============================================================
+Running evaluation at step 917504...
+============================================================ at 2026-11-06 07:46:48
+  return: 30.28 ± 3.20
+  sustainability: 493.95 ± 21.62
+  equality: 0.71 ± 0.02
+  peace: 6.60 ± 0.19
+
+Skipping video generation for step 917504 (Only saved at final step).
+
+============================================================
+Running evaluation at step 933888...
+============================================================ at 2026-11-06 07:47:12
+  return: 34.06 ± 3.96
+  sustainability: 527.75 ± 40.48
+  equality: 0.66 ± 0.06
+  peace: 6.72 ± 0.22
+
+Skipping video generation for step 933888 (Only saved at final step).
+
+============================================================
+Running evaluation at step 950272...
+============================================================ at 2026-11-06 07:47:37
+  return: 30.64 ± 3.17
+  sustainability: 521.07 ± 76.08
+  equality: 0.72 ± 0.05
+  peace: 6.53 ± 0.13
+
+Skipping video generation for step 950272 (Only saved at final step).
+
+============================================================
+Running evaluation at step 966656...
+============================================================ at 2026-11-06 07:48:02
+  return: 29.84 ± 3.33
+  sustainability: 554.47 ± 52.17
+  equality: 0.72 ± 0.02
+  peace: 6.53 ± 0.24
+
+Skipping video generation for step 966656 (Only saved at final step).
+
+============================================================
+Running evaluation at step 983040...
+============================================================ at 2026-11-06 07:48:27
+  return: 29.06 ± 3.79
+  sustainability: 523.58 ± 29.01
+  equality: 0.67 ± 0.05
+  peace: 6.55 ± 0.22
+
+Skipping video generation for step 983040 (Only saved at final step).
+
+============================================================
+Running evaluation at step 999424...
+============================================================ at 2026-11-06 07:48:52
+  return: 28.22 ± 3.44
+  sustainability: 504.96 ± 18.14
+  equality: 0.63 ± 0.07
+  peace: 6.49 ± 0.19
+
+Skipping video generation for step 999424 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1015808...
+============================================================ at 2026-11-06 07:49:17
+  return: 29.92 ± 4.24
+  sustainability: 522.54 ± 55.63
+  equality: 0.71 ± 0.06
+  peace: 6.46 ± 0.21
+
+Skipping video generation for step 1015808 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1032192...
+============================================================ at 2026-11-06 07:49:41
+  return: 27.06 ± 3.85
+  sustainability: 516.48 ± 50.91
+  equality: 0.68 ± 0.06
+  peace: 6.47 ± 0.20
+
+Skipping video generation for step 1032192 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1048576...
+============================================================ at 2026-11-06 07:50:06
+  return: 27.20 ± 4.69
+  sustainability: 506.69 ± 35.99
+  equality: 0.65 ± 0.09
+  peace: 6.27 ± 0.22
+
+Skipping video generation for step 1048576 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1064960...
+============================================================ at 2026-11-06 07:50:31
+  return: 31.34 ± 3.10
+  sustainability: 517.06 ± 39.76
+  equality: 0.70 ± 0.06
+  peace: 6.49 ± 0.24
+
+Skipping video generation for step 1064960 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1081344...
+============================================================ at 2026-11-06 07:50:56
+  return: 29.14 ± 3.67
+  sustainability: 505.95 ± 35.47
+  equality: 0.72 ± 0.06
+  peace: 6.59 ± 0.18
+
+Skipping video generation for step 1081344 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1097728...
+============================================================ at 2026-11-06 07:51:21
+  return: 29.92 ± 4.53
+  sustainability: 492.11 ± 74.06
+  equality: 0.69 ± 0.07
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+  peace: 6.39 ± 0.21
+
+Skipping video generation for step 1097728 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1114112...
+============================================================ at 2026-11-06 07:51:46
+  return: 29.86 ± 4.72
+  sustainability: 511.76 ± 48.04
+  equality: 0.72 ± 0.03
+  peace: 6.54 ± 0.14
+
+Skipping video generation for step 1114112 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1130496...
+============================================================ at 2026-11-06 07:52:11
+  return: 27.26 ± 2.88
+  sustainability: 492.81 ± 32.96
+  equality: 0.74 ± 0.05
+  peace: 6.38 ± 0.29
+
+Skipping video generation for step 1130496 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1146880...
+============================================================ at 2026-11-06 07:52:36
+  return: 29.48 ± 1.98
+  sustainability: 592.31 ± 41.41
+  equality: 0.66 ± 0.07
+  peace: 6.58 ± 0.06
+
+Skipping video generation for step 1146880 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1163264...
+============================================================ at 2026-11-06 07:53:00
+  return: 29.36 ± 2.50
+  sustainability: 541.45 ± 30.74
+  equality: 0.63 ± 0.02
+  peace: 6.46 ± 0.11
+
+Skipping video generation for step 1163264 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1179648...
+============================================================ at 2026-11-06 07:53:25
+  return: 29.24 ± 4.41
+  sustainability: 496.94 ± 31.07
+  equality: 0.63 ± 0.10
+  peace: 6.40 ± 0.11
+
+Skipping video generation for step 1179648 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1196032...
+============================================================ at 2026-11-06 07:53:50
+  return: 24.66 ± 5.62
+  sustainability: 515.05 ± 44.96
+  equality: 0.67 ± 0.05
+  peace: 6.25 ± 0.40
+
+Skipping video generation for step 1196032 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1212416...
+============================================================ at 2026-11-06 07:54:15
+  return: 26.96 ± 4.96
+  sustainability: 521.54 ± 73.09
+  equality: 0.69 ± 0.05
+  peace: 6.38 ± 0.18
+
+Skipping video generation for step 1212416 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1228800...
+============================================================ at 2026-11-06 07:54:40
+  return: 24.38 ± 3.17
+  sustainability: 539.21 ± 37.50
+  equality: 0.63 ± 0.06
+  peace: 6.38 ± 0.18
+
+Skipping video generation for step 1228800 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1245184...
+============================================================ at 2026-11-06 07:55:05
+  return: 26.32 ± 4.58
+  sustainability: 474.35 ± 29.65
+  equality: 0.66 ± 0.04
+  peace: 6.31 ± 0.23
+
+Skipping video generation for step 1245184 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1261568...
+============================================================ at 2026-11-06 07:55:29
+  return: 29.92 ± 2.76
+  sustainability: 496.95 ± 30.22
+  equality: 0.66 ± 0.05
+  peace: 6.60 ± 0.14
+
+Skipping video generation for step 1261568 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1277952...
+============================================================ at 2026-11-06 07:55:54
+  return: 27.58 ± 2.82
+  sustainability: 529.98 ± 33.81
+  equality: 0.68 ± 0.06
+  peace: 6.50 ± 0.09
+
+Skipping video generation for step 1277952 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1294336...
+============================================================ at 2026-11-06 07:56:19
+  return: 26.52 ± 2.53
+  sustainability: 518.87 ± 49.68
+  equality: 0.67 ± 0.02
+  peace: 6.31 ± 0.18
+
+Skipping video generation for step 1294336 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1310720...
+============================================================ at 2026-11-06 07:56:44
+  return: 27.40 ± 2.64
+  sustainability: 548.99 ± 20.77
+  equality: 0.64 ± 0.05
+  peace: 6.49 ± 0.17
+
+Skipping video generation for step 1310720 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1327104...
+============================================================ at 2026-11-06 07:57:09
+  return: 27.34 ± 4.10
+  sustainability: 518.31 ± 53.87
+  equality: 0.70 ± 0.08
+  peace: 6.48 ± 0.17
+
+Skipping video generation for step 1327104 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1343488...
+============================================================ at 2026-11-06 07:57:34
+  return: 30.02 ± 3.60
+  sustainability: 516.34 ± 37.24
+  equality: 0.69 ± 0.04
+  peace: 6.59 ± 0.15
+
+Skipping video generation for step 1343488 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1359872...
+============================================================ at 2026-11-06 07:57:59
+  return: 28.10 ± 3.32
+  sustainability: 517.92 ± 30.30
+  equality: 0.66 ± 0.05
+  peace: 6.47 ± 0.17
+
+Skipping video generation for step 1359872 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1376256...
+============================================================ at 2026-11-06 07:58:24
+  return: 27.16 ± 2.57
+  sustainability: 538.88 ± 51.57
+  equality: 0.64 ± 0.08
+  peace: 6.46 ± 0.23
+
+Skipping video generation for step 1376256 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1392640...
+============================================================ at 2026-11-06 07:58:49
+  return: 28.80 ± 4.43
+  sustainability: 475.37 ± 32.01
+  equality: 0.64 ± 0.08
+  peace: 6.49 ± 0.19
+
+Skipping video generation for step 1392640 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1409024...
+============================================================ at 2026-11-06 07:59:13
+  return: 25.78 ± 4.46
+  sustainability: 503.90 ± 38.91
+  equality: 0.71 ± 0.08
+  peace: 6.45 ± 0.13
+
+Skipping video generation for step 1409024 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1425408...
+============================================================ at 2026-11-06 07:59:38
+  return: 30.02 ± 4.42
+  sustainability: 516.68 ± 30.59
+  equality: 0.72 ± 0.04
+  peace: 6.49 ± 0.28
+
+Skipping video generation for step 1425408 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1441792...
+============================================================ at 2026-11-06 08:00:03
+  return: 26.18 ± 2.12
+  sustainability: 480.14 ± 51.19
+  equality: 0.68 ± 0.06
+  peace: 6.39 ± 0.14
+
+Skipping video generation for step 1441792 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1458176...
+============================================================ at 2026-11-06 08:00:28
+  return: 32.02 ± 4.92
+  sustainability: 514.32 ± 29.92
+  equality: 0.71 ± 0.04
+  peace: 6.52 ± 0.27
+
+Skipping video generation for step 1458176 (Only saved at final step).
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+
+============================================================
+Running evaluation at step 1474560...
+============================================================ at 2026-11-06 08:00:53
+  return: 29.96 ± 2.97
+  sustainability: 517.30 ± 35.59
+  equality: 0.70 ± 0.05
+  peace: 6.49 ± 0.18
+
+Skipping video generation for step 1474560 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1490944...
+============================================================ at 2026-11-06 08:01:18
+  return: 34.84 ± 3.74
+  sustainability: 527.08 ± 30.20
+  equality: 0.67 ± 0.07
+  peace: 6.73 ± 0.18
+
+Skipping video generation for step 1490944 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1507328...
+============================================================ at 2026-11-06 08:01:43
+  return: 30.44 ± 5.99
+  sustainability: 557.71 ± 64.48
+  equality: 0.70 ± 0.07
+  peace: 6.50 ± 0.33
+
+Skipping video generation for step 1507328 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1523712...
+============================================================ at 2026-11-06 08:02:08
+  return: 31.18 ± 1.00
+  sustainability: 528.16 ± 24.95
+  equality: 0.71 ± 0.06
+  peace: 6.51 ± 0.14
+
+Skipping video generation for step 1523712 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1540096...
+============================================================ at 2026-11-06 08:02:32
+  return: 34.42 ± 5.00
+  sustainability: 515.88 ± 25.53
+  equality: 0.74 ± 0.05
+  peace: 6.78 ± 0.21
+
+Skipping video generation for step 1540096 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1556480...
+============================================================ at 2026-11-06 08:02:57
+  return: 35.14 ± 4.17
+  sustainability: 526.27 ± 20.58
+  equality: 0.71 ± 0.04
+  peace: 6.60 ± 0.19
+
+Skipping video generation for step 1556480 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1572864...
+============================================================ at 2026-11-06 08:03:22
+  return: 33.84 ± 2.46
+  sustainability: 501.21 ± 22.29
+  equality: 0.69 ± 0.07
+  peace: 6.51 ± 0.17
+
+Skipping video generation for step 1572864 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1589248...
+============================================================ at 2026-11-06 08:03:47
+  return: 31.50 ± 3.70
+  sustainability: 526.97 ± 30.22
+  equality: 0.72 ± 0.04
+  peace: 6.65 ± 0.24
+
+Skipping video generation for step 1589248 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1605632...
+============================================================ at 2026-11-06 08:04:12
+  return: 28.60 ± 3.87
+  sustainability: 532.07 ± 45.36
+  equality: 0.70 ± 0.09
+  peace: 6.43 ± 0.26
+
+Skipping video generation for step 1605632 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1622016...
+============================================================ at 2026-11-06 08:04:37
+  return: 31.98 ± 4.02
+  sustainability: 504.96 ± 55.10
+  equality: 0.74 ± 0.06
+  peace: 6.62 ± 0.28
+
+Skipping video generation for step 1622016 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1638400...
+============================================================ at 2026-11-06 08:05:02
+  return: 30.76 ± 4.32
+  sustainability: 546.06 ± 35.79
+  equality: 0.77 ± 0.05
+  peace: 6.49 ± 0.21
+
+Skipping video generation for step 1638400 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1654784...
+============================================================ at 2026-11-06 08:05:27
+  return: 30.42 ± 3.34
+  sustainability: 516.95 ± 57.20
+  equality: 0.72 ± 0.05
+  peace: 6.48 ± 0.21
+
+Skipping video generation for step 1654784 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1671168...
+============================================================ at 2026-11-06 08:05:52
+  return: 31.96 ± 2.95
+  sustainability: 518.23 ± 18.71
+  equality: 0.68 ± 0.07
+  peace: 6.62 ± 0.14
+
+Skipping video generation for step 1671168 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1687552...
+============================================================ at 2026-11-06 08:06:17
+  return: 34.56 ± 1.19
+  sustainability: 514.60 ± 24.73
+  equality: 0.76 ± 0.08
+  peace: 6.58 ± 0.14
+
+Skipping video generation for step 1687552 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1703936...
+============================================================ at 2026-11-06 08:06:42
+  return: 35.70 ± 3.21
+  sustainability: 524.21 ± 40.74
+  equality: 0.75 ± 0.06
+  peace: 6.61 ± 0.19
+
+Skipping video generation for step 1703936 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1720320...
+============================================================ at 2026-11-06 08:07:07
+  return: 37.16 ± 3.70
+  sustainability: 529.01 ± 56.13
+  equality: 0.77 ± 0.04
+  peace: 6.54 ± 0.16
+
+Skipping video generation for step 1720320 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1736704...
+============================================================ at 2026-11-06 08:07:32
+  return: 35.38 ± 4.40
+  sustainability: 511.92 ± 16.79
+  equality: 0.73 ± 0.03
+  peace: 6.62 ± 0.30
+
+Skipping video generation for step 1736704 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1753088...
+============================================================ at 2026-11-06 08:07:56
+  return: 36.60 ± 5.00
+  sustainability: 485.24 ± 50.91
+  equality: 0.73 ± 0.03
+  peace: 6.51 ± 0.20
+
+Skipping video generation for step 1753088 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1769472...
+============================================================ at 2026-11-06 08:08:21
+  return: 36.02 ± 7.14
+  sustainability: 498.99 ± 32.40
+  equality: 0.72 ± 0.04
+  peace: 6.61 ± 0.24
+
+Skipping video generation for step 1769472 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1785856...
+============================================================ at 2026-11-06 08:08:46
+  return: 38.76 ± 3.43
+  sustainability: 511.43 ± 29.34
+  equality: 0.73 ± 0.05
+  peace: 6.79 ± 0.18
+
+Skipping video generation for step 1785856 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1802240...
+============================================================ at 2026-11-06 08:09:11
+  return: 37.64 ± 6.51
+  sustainability: 530.69 ± 45.14
+  equality: 0.66 ± 0.06
+  peace: 6.60 ± 0.36
+
+Skipping video generation for step 1802240 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1818624...
+============================================================ at 2026-11-06 08:09:36
+  return: 36.10 ± 4.74
+  sustainability: 545.83 ± 27.26
+  equality: 0.75 ± 0.03
+  peace: 6.55 ± 0.23
+
+Skipping video generation for step 1818624 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1835008...
+============================================================ at 2026-11-06 08:10:01
+  return: 37.60 ± 7.85
+  sustainability: 522.38 ± 60.73
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+  equality: 0.76 ± 0.09
+  peace: 6.55 ± 0.30
+
+Skipping video generation for step 1835008 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1851392...
+============================================================ at 2026-11-06 08:10:26
+  return: 36.58 ± 2.34
+  sustainability: 528.40 ± 23.57
+  equality: 0.72 ± 0.08
+  peace: 6.67 ± 0.24
+
+Skipping video generation for step 1851392 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1867776...
+============================================================ at 2026-11-06 08:10:51
+  return: 38.90 ± 4.51
+  sustainability: 532.07 ± 26.65
+  equality: 0.77 ± 0.03
+  peace: 6.63 ± 0.24
+
+Skipping video generation for step 1867776 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1884160...
+============================================================ at 2026-11-06 08:11:16
+  return: 37.18 ± 4.85
+  sustainability: 561.04 ± 47.78
+  equality: 0.69 ± 0.04
+  peace: 6.76 ± 0.32
+
+Skipping video generation for step 1884160 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1900544...
+============================================================ at 2026-11-06 08:11:40
+  return: 33.56 ± 3.37
+  sustainability: 517.68 ± 35.23
+  equality: 0.72 ± 0.10
+  peace: 6.65 ± 0.14
+
+Skipping video generation for step 1900544 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1916928...
+============================================================ at 2026-11-06 08:12:05
+  return: 35.98 ± 3.03
+  sustainability: 507.06 ± 43.26
+  equality: 0.79 ± 0.05
+  peace: 6.66 ± 0.10
+
+Skipping video generation for step 1916928 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1933312...
+============================================================ at 2026-11-06 08:12:30
+  return: 32.74 ± 4.27
+  sustainability: 511.31 ± 18.72
+  equality: 0.74 ± 0.05
+  peace: 6.43 ± 0.19
+
+Skipping video generation for step 1933312 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1949696...
+============================================================ at 2026-11-06 08:12:55
+  return: 36.06 ± 3.22
+  sustainability: 540.60 ± 50.00
+  equality: 0.71 ± 0.03
+  peace: 6.59 ± 0.14
+
+Skipping video generation for step 1949696 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1966080...
+============================================================ at 2026-11-06 08:13:20
+  return: 35.68 ± 3.08
+  sustainability: 505.08 ± 72.54
+  equality: 0.72 ± 0.05
+  peace: 6.47 ± 0.25
+
+Skipping video generation for step 1966080 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1982464...
+============================================================ at 2026-11-06 08:13:45
+  return: 36.98 ± 4.20
+  sustainability: 520.06 ± 34.81
+  equality: 0.75 ± 0.05
+  peace: 6.61 ± 0.26
+
+Skipping video generation for step 1982464 (Only saved at final step).
+
+============================================================
+Running evaluation at step 1998848...
+============================================================ at 2026-11-06 08:14:10
+  return: 35.46 ± 2.71
+  sustainability: 511.21 ± 30.05
+  equality: 0.73 ± 0.05
+  peace: 6.58 ± 0.19
+
+Skipping video generation for step 1998848 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2015232...
+============================================================ at 2026-11-06 08:14:35
+  return: 36.00 ± 2.04
+  sustainability: 500.61 ± 38.33
+  equality: 0.70 ± 0.07
+  peace: 6.65 ± 0.19
+
+Skipping video generation for step 2015232 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2031616...
+============================================================ at 2026-11-06 08:15:00
+  return: 35.58 ± 3.77
+  sustainability: 530.98 ± 21.46
+  equality: 0.69 ± 0.06
+  peace: 6.62 ± 0.08
+
+Skipping video generation for step 2031616 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2048000...
+============================================================ at 2026-11-06 08:15:25
+  return: 35.60 ± 6.18
+  sustainability: 506.82 ± 45.94
+  equality: 0.79 ± 0.02
+  peace: 6.63 ± 0.31
+
+Skipping video generation for step 2048000 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2064384...
+============================================================ at 2026-11-06 08:15:49
+  return: 38.30 ± 5.34
+  sustainability: 526.57 ± 27.33
+  equality: 0.71 ± 0.02
+  peace: 6.70 ± 0.18
+
+Skipping video generation for step 2064384 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2080768...
+============================================================ at 2026-11-06 08:16:14
+  return: 38.02 ± 5.34
+  sustainability: 543.06 ± 17.86
+  equality: 0.75 ± 0.04
+  peace: 6.71 ± 0.20
+
+Skipping video generation for step 2080768 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2097152...
+============================================================ at 2026-11-06 08:16:39
+  return: 33.92 ± 2.76
+  sustainability: 527.94 ± 11.86
+  equality: 0.73 ± 0.05
+  peace: 6.61 ± 0.20
+
+Skipping video generation for step 2097152 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2113536...
+============================================================ at 2026-11-06 08:17:04
+  return: 39.62 ± 5.69
+  sustainability: 537.89 ± 18.91
+  equality: 0.76 ± 0.02
+  peace: 6.74 ± 0.21
+
+Skipping video generation for step 2113536 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2129920...
+============================================================ at 2026-11-06 08:17:29
+  return: 36.98 ± 3.10
+  sustainability: 534.45 ± 42.30
+  equality: 0.74 ± 0.05
+  peace: 6.68 ± 0.27
+
+Skipping video generation for step 2129920 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2146304...
+============================================================ at 2026-11-06 08:17:54
+  return: 38.38 ± 4.60
+  sustainability: 530.32 ± 38.54
+  equality: 0.72 ± 0.04
+  peace: 6.72 ± 0.19
+
+Skipping video generation for step 2146304 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2162688...
+============================================================ at 2026-11-06 08:18:19
+  return: 38.28 ± 6.82
+  sustainability: 529.13 ± 18.72
+  equality: 0.77 ± 0.05
+  peace: 6.74 ± 0.27
+
+Skipping video generation for step 2162688 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2179072...
+============================================================ at 2026-11-06 08:18:45
+  return: 36.34 ± 3.79
+  sustainability: 535.42 ± 22.16
+  equality: 0.70 ± 0.09
+  peace: 6.64 ± 0.22
+
+Skipping video generation for step 2179072 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2195456...
+============================================================ at 2026-11-06 08:19:12
+  return: 36.96 ± 2.00
+  sustainability: 504.24 ± 31.10
+  equality: 0.79 ± 0.02
+  peace: 6.56 ± 0.15
+
+Skipping video generation for step 2195456 (Only saved at final step).
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Pre-rendering tiles...
+Pre-rendered 178 tiles
+Traceback (most recent call last):
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 22, in <module>
+    import wandb
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/__init__.py", line 22, in <module>
+    from wandb.sdk.lib import wb_logging as _wb_logging
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/__init__.py", line 24, in <module>
+    from . import wandb_helper as helper
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/wandb_helper.py", line 6, in <module>
+    from .lib import config_util
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/config_util.py", line 10, in <module>
+    from wandb.util import load_yaml
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/util.py", line 51, in <module>
+    from wandb.sdk.lib import filesystem, runid
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/filesystem.py", line 19, in <module>
+    from wandb.sdk.wandb_settings import Settings
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/wandb_settings.py", line 24, in <module>
+    from wandb._pydantic import (
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/_pydantic/__init__.py", line 36, in <module>
+    from .base import CompatBaseModel, GQLBase, GQLInput, GQLResult, JsonableModel
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/_pydantic/base.py", line 51, in <module>
+    class JsonableModel(CompatBaseModel, ABC):
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_model_construction.py", line 221, in __new__
+    set_model_fields(cls, config_wrapper=config_wrapper, ns_resolver=ns_resolver)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_model_construction.py", line 544, in set_model_fields
+    fields, class_vars = collect_model_fields(cls, config_wrapper, ns_resolver, typevars_map=typevars_map)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_fields.py", line 281, in collect_model_fields
+    _update_fields_from_docstrings(cls, fields)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_fields.py", line 72, in _update_fields_from_docstrings
+    fields_docs = extract_docstrings_from_cls(cls, use_inspect=use_inspect)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_docs_extraction.py", line 99, in extract_docstrings_from_cls
+    source = _extract_source_from_frame(cls)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/pydantic/_internal/_docs_extraction.py", line 55, in _extract_source_from_frame
+    if inspect.getmodule(frame) is inspect.getmodule(cls):
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/inspect.py", line 869, in getmodule
+    if ismodule(module) and hasattr(module, '__file__'):
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/inspect.py", line 182, in ismodule
+    def ismodule(object):
+KeyboardInterrupt
+ERROR:2026-11-06 08:25:41,360:jax._src.debugging:98: jax.debug.callback failed
+Traceback (most recent call last):
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 96, in debug_callback_impl
+    callback(*args)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 336, in _flat_callback
+    callback(*args, **kwargs)
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 751, in eval_callback
+    subprocess.run([
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 505, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1146, in communicate
+    self.wait()
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1209, in wait
+    return self._wait(timeout=timeout)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1959, in _wait
+    (pid, sts) = self._try_wait(0)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1917, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+KeyboardInterrupt
+
+============================================================
+Running evaluation at step 2211840...
+============================================================ at 2026-11-06 08:19:38
+  return: 38.58 ± 2.61
+  sustainability: 537.32 ± 32.43
+  equality: 0.75 ± 0.05
+  peace: 6.78 ± 0.10
+
+Skipping video generation for step 2211840 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2228224...
+============================================================ at 2026-11-06 08:20:06
+  return: 38.36 ± 7.88
+  sustainability: 509.98 ± 49.11
+  equality: 0.76 ± 0.02
+  peace: 6.73 ± 0.25
+
+Skipping video generation for step 2228224 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2244608...
+============================================================ at 2026-11-06 08:20:32
+  return: 37.34 ± 4.11
+  sustainability: 498.50 ± 46.02
+  equality: 0.76 ± 0.06
+  peace: 6.65 ± 0.20
+
+Skipping video generation for step 2244608 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2260992...
+============================================================ at 2026-11-06 08:20:59
+  return: 37.48 ± 3.17
+  sustainability: 487.89 ± 16.33
+  equality: 0.77 ± 0.03
+  peace: 6.64 ± 0.26
+
+Skipping video generation for step 2260992 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2277376...
+============================================================ at 2026-11-06 08:21:25
+  return: 35.44 ± 3.13
+  sustainability: 523.22 ± 23.01
+  equality: 0.74 ± 0.02
+  peace: 6.50 ± 0.14
+
+Skipping video generation for step 2277376 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2293760...
+============================================================ at 2026-11-06 08:21:50
+  return: 38.30 ± 3.46
+  sustainability: 513.78 ± 34.03
+  equality: 0.77 ± 0.05
+  peace: 6.47 ± 0.24
+
+Skipping video generation for step 2293760 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2310144...
+============================================================ at 2026-11-06 08:22:16
+  return: 39.16 ± 4.68
+  sustainability: 519.89 ± 41.80
+  equality: 0.68 ± 0.05
+  peace: 6.69 ± 0.19
+
+Skipping video generation for step 2310144 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2326528...
+============================================================ at 2026-11-06 08:22:41
+  return: 39.10 ± 4.67
+  sustainability: 509.35 ± 25.94
+  equality: 0.67 ± 0.05
+  peace: 6.65 ± 0.18
+
+Skipping video generation for step 2326528 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2342912...
+============================================================ at 2026-11-06 08:23:06
+  return: 39.06 ± 5.75
+  sustainability: 503.99 ± 32.46
+  equality: 0.72 ± 0.07
+  peace: 6.78 ± 0.22
+
+Skipping video generation for step 2342912 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2359296...
+============================================================ at 2026-11-06 08:23:32
+  return: 36.14 ± 1.83
+  sustainability: 540.98 ± 33.77
+  equality: 0.78 ± 0.06
+  peace: 6.73 ± 0.11
+
+Skipping video generation for step 2359296 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2375680...
+============================================================ at 2026-11-06 08:23:57
+  return: 37.46 ± 2.90
+  sustainability: 510.36 ± 8.98
+  equality: 0.78 ± 0.04
+  peace: 6.62 ± 0.18
+
+Skipping video generation for step 2375680 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2392064...
+============================================================ at 2026-11-06 08:24:22
+  return: 37.76 ± 4.64
+  sustainability: 547.12 ± 29.45
+  equality: 0.75 ± 0.03
+  peace: 6.71 ± 0.19
+
+Skipping video generation for step 2392064 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2408448...
+============================================================ at 2026-11-06 08:24:47
+  return: 38.98 ± 4.81
+  sustainability: 516.57 ± 26.82
+  equality: 0.77 ± 0.05
+  peace: 6.72 ± 0.22
+
+Skipping video generation for step 2408448 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2424832...
+============================================================ at 2026-11-06 08:25:13
+  return: 38.06 ± 3.86
+  sustainability: 506.60 ± 39.12
+  equality: 0.78 ± 0.05
+  peace: 6.76 ± 0.26
+
+Skipping video generation for step 2424832 (Only saved at final step).
+
+============================================================
+Running evaluation at step 2441216...
+============================================================ at 2026-11-06 08:25:39
+[2026-11-06 08:25:41,360][jax._src.debugging][ERROR] - jax.debug.callback failed
+Traceback (most recent call last):
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 96, in debug_callback_impl
+    callback(*args)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 336, in _flat_callback
+    callback(*args, **kwargs)
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 751, in eval_callback
+    subprocess.run([
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 505, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1146, in communicate
+    self.wait()
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1209, in wait
+    return self._wait(timeout=timeout)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1959, in _wait
+    (pid, sts) = self._try_wait(0)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1917, in _try_wait
+    (pid, sts) = os.waitpid(self.pid, wait_flags)
+KeyboardInterrupt
+E1106 08:25:41.369292  965182 pjrt_stream_executor_client.cc:2916] Execution of replica 0 failed: INTERNAL: CpuCallback error calling callback: Traceback (most recent call last):
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1538, in <module>
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/main.py", line 94, in decorated_main
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 394, in _run_hydra
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 457, in _run_app
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 220, in run_and_report
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 458, in <lambda>
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/hydra.py", line 119, in run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/core/utils.py", line 186, in run_job
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1532, in main
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 964, in single_run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 182, in reraise_with_filtered_traceback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/api.py", line 1129, in vmap_f
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/linear_util.py", line 211, in call_wrapped
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 618, in _batch_outer
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 634, in _batch_inner
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 342, in flatten_fun_for_vmap
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/linear_util.py", line 396, in _get_result_paths_thunk
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 182, in reraise_with_filtered_traceback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 292, in cache_miss
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 155, in _python_pjit_helper
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 536, in bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 552, in _true_bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 562, in bind_with_trace
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 498, in process_primitive
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 2170, in _pjit_batcher
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 536, in bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 552, in _true_bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 562, in bind_with_trace
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 1066, in process_primitive
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1921, in _pjit_call_impl
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1898, in call_impl_cache_miss
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1877, in _pjit_call_impl_python
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/profiler.py", line 354, in wrapper
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/pxla.py", line 1297, in __call__
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/callback.py", line 782, in _wrapped_callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 202, in _callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 99, in debug_callback_impl
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 336, in _flat_callback
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 751, in eval_callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 523, in run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1146, in communicate
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1225, in wait
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1959, in _wait
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1918, in _try_wait
+KeyboardInterrupt: 
+Error executing job with overrides: ['SEED=62', 'ENV_KWARGS.intrinsic_motivation.im_w=3.0']
+jax.errors.SimplifiedTraceback: For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1532, in main
+    single_run(config)
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 964, in single_run
+    out = jax.vmap(train_jit)(rngs)
+jaxlib._jax.XlaRuntimeError: INTERNAL: CpuCallback error calling callback: Traceback (most recent call last):
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1538, in <module>
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/main.py", line 94, in decorated_main
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 394, in _run_hydra
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 457, in _run_app
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 220, in run_and_report
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 458, in <lambda>
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/hydra.py", line 119, in run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/core/utils.py", line 186, in run_job
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1532, in main
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 964, in single_run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 182, in reraise_with_filtered_traceback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/api.py", line 1129, in vmap_f
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/linear_util.py", line 211, in call_wrapped
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 618, in _batch_outer
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 634, in _batch_inner
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 342, in flatten_fun_for_vmap
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/linear_util.py", line 396, in _get_result_paths_thunk
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/traceback_util.py", line 182, in reraise_with_filtered_traceback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 292, in cache_miss
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 155, in _python_pjit_helper
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 536, in bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 552, in _true_bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 562, in bind_with_trace
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/batching.py", line 498, in process_primitive
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 2170, in _pjit_batcher
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 536, in bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 552, in _true_bind
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 562, in bind_with_trace
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/core.py", line 1066, in process_primitive
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1921, in _pjit_call_impl
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1898, in call_impl_cache_miss
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/pjit.py", line 1877, in _pjit_call_impl_python
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/profiler.py", line 354, in wrapper
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/interpreters/pxla.py", line 1297, in __call__
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/callback.py", line 782, in _wrapped_callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 202, in _callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 99, in debug_callback_impl
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/jax/_src/debugging.py", line 336, in _flat_callback
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 751, in eval_callback
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 523, in run
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1146, in communicate
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1225, in wait
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1959, in _wait
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/subprocess.py", line 1918, in _try_wait
+KeyboardInterrupt: 
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.
+[1;34mwandb[0m: 
+[1;34mwandb[0m: You can sync this run to the cloud by running:
+[1;34mwandb[0m: [1mwandb sync /home/ademir/Desktop/SocialJax/wandb/offline-run-20261106_072257-zx7p5qei[0m
+[1;34mwandb[0m: Find logs at: [1;35mwandb/offline-run-20261106_072257-zx7p5qei/logs[0m

@@ -1,15 +1,15 @@
-"LR": 0.00001
-"NUM_ENVS": 16
+"LR": 0.0003
+"NUM_ENVS": 32
 "NUM_STEPS": 256
-"TOTAL_TIMESTEPS": 1e8
-"UPDATE_EPOCHS": 2
-"NUM_MINIBATCHES": 8
+"TOTAL_TIMESTEPS": 1e7
+"UPDATE_EPOCHS": 4
+"NUM_MINIBATCHES": 4
 "GAMMA": 0.99
 "GAE_LAMBDA": 0.95
 "CLIP_EPS": 0.2
-"ENT_COEF": 0.01
+"ENT_COEF": 0.03
 "VF_COEF": 0.5
-"MAX_GRAD_NORM": 5.0
+"MAX_GRAD_NORM": 0.5
 "LSTM_HIDDEN_SIZE": 64
 "ACTIVATION": "relu"
 "ENV_NAME": "harvest_timeout"
@@ -18,11 +18,24 @@
   "num_inner_steps" : 1000
   "shared_rewards" : False  # Attention: switch to False for individual rewards; True for common rewards
   "cnn" : True
+  "default_reward": 0.0
+  "reward_multipliers": [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
   "jit" : True
+  "intrinsic_motivation":
+    "im_type": "svo"
+    "im_w": 0.02
+    "im_ideal_angle_degrees": 45 
+    "im_gamma": 0.99     
+    "im_lambda": 0.9
+  # "intrinsic_motivation":
+  #   "im_type": "ia"
+  #   "im_alpha": 5
+  #   "im_beta": 0.05 
+  #   "im_gamma": 0.99     
+  #   "im_lambda": 0.9
 
-
-"ANNEAL_LR": True
-"SEED": 0
+"ANNEAL_LR": TRUE
+"SEED": 42
 "NUM_SEEDS": 1
 "TUNE": False
 
@@ -31,8 +44,9 @@
 "PARAMETER_SHARING": False
 
 # Evaluation settings
-"EVAL_INTERVAL": 50    # Evaluate every N iterations
+"EVAL_INTERVAL": 2    # Evaluate every N iterations
 "EVAL_EPISODES": 5     # Number of episodes per evaluation
+"EVAL_GREEDY": False
 
 # WandB Params
 "ENTITY": ""

@@ -1,0 +1,40 @@
+Traceback (most recent call last):
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1538, in <module>
+    main()
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/main.py", line 94, in decorated_main
+    _run_hydra(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 394, in _run_hydra
+    _run_app(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 457, in _run_app
+    run_and_report(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 220, in run_and_report
+    return func()
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/utils.py", line 458, in <lambda>
+    lambda: hydra.run(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/_internal/hydra.py", line 119, in run
+    ret = run_job(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/hydra/core/utils.py", line 186, in run_job
+    ret.return_value = task_function(task_cfg)
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 1532, in main
+    single_run(config)
+  File "/home/ademir/Desktop/SocialJax/algorithms/IPPO/ippo_cnn_lstm_harvest_timeout.py", line 950, in single_run
+    run = wandb.init(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/wandb_init.py", line 1511, in init
+    run = wi.init(run_settings, run_config, run_printer)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/wandb_init.py", line 816, in init
+    service = self._wl.ensure_service()
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/wandb_setup.py", line 392, in ensure_service
+    self._connection = service_connection.connect_to_service(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_connection.py", line 51, in connect_to_service
+    return _start_and_connect_service(asyncer, settings)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_connection.py", line 64, in _start_and_connect_service
+    proc = service_process.start(settings)
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_process.py", line 33, in start
+    return _start(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_process.py", line 75, in _start
+    return _launch_server(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_process.py", line 162, in _launch_server
+    token = service_port_file.poll_for_token(
+  File "/home/ademir/miniforge3/envs/SocialJax/lib/python3.10/site-packages/wandb/sdk/lib/service/service_port_file.py", line 61, in poll_for_token
+    _SLEEP(max(0, min(0.2, end_time - _MONOTONIC())))
+KeyboardInterrupt
